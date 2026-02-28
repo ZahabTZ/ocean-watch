@@ -7,12 +7,13 @@ import { FleetPanel } from '@/components/FleetPanel';
 import { SourcesGrid } from '@/components/SourcesGrid';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
-import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare } from 'lucide-react';
+import { CommPanel } from '@/components/CommPanel';
+import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare, Radio } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const Index = () => {
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(MOCK_ALERTS[0].id);
-  const [view, setView] = useState<'map' | 'dashboard' | 'chat'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm'>('map');
   const selectedAlert = MOCK_ALERTS.find((a) => a.id === selectedAlertId);
 
   const criticalCount = MOCK_ALERTS.filter((a) => a.severity === 'critical').length;
@@ -66,6 +67,15 @@ const Index = () => {
                 <MessageSquare className="h-3 w-3" />
                 Chat
               </button>
+              <button
+                onClick={() => setView('comm')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                  view === 'comm' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Radio className="h-3 w-3" />
+                Comm
+              </button>
             </div>
 
             <div className="flex items-center gap-1.5 rounded-md bg-destructive/10 border border-destructive/20 px-2.5 py-1">
@@ -88,6 +98,10 @@ const Index = () => {
       ) : view === 'chat' ? (
         <div className="flex-1 overflow-hidden">
           <ChatPanel />
+        </div>
+      ) : view === 'comm' ? (
+        <div className="flex-1 overflow-hidden">
+          <CommPanel />
         </div>
       ) : (
         <main className="flex-1 overflow-auto">
