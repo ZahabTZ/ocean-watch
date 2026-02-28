@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/vessels-chartering-iotc-area-competence-tanzania-oman",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-11-26",
+  "discovered_at": "2026-02-28T21:26:09.932657+00:00",
+  "file_hash": "f3de5967e556426a94fe67e3eb160a403adec2ecaeae6bf6a485d9a678a74b73",
+  "status": "ingested",
+  "title": "VESSELS CHARTERING IN THE IOTC AREA OF COMPETENCE: TANZANIA - OMAN | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:19 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/vessels-chartering-iotc-area-competence-tanzania-oman>; rel=\"canonical\",</node/20727>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311586-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:26 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "source_url": "https://www.iccat.int/Documents/Recs/COMPENDIUM_ACTIVE_ENG.pdf",
+  "rfmo": "ICCAT",
+  "document_type": "conservation_management_measures",
+  "published_date": null,
+  "discovered_at": "2026-02-28T21:22:05.330638+00:00",
+  "file_hash": "ff045eb98a054aed6f98dfd26f26f6e42d351fdb3de9e0b205bae7eb27b68653",
+  "status": "ingested",
+  "title": "Compendium of management recommendations and resolutions, adopted by ICCAT for the conservation of Atlantic tunas and tuna\u2010like species",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Atlantic Ocean",
+  "headers": {
+    "Content-Type": "application/pdf",
+    "Last-Modified": "Mon, 05 Jan 2026 13:30:23 GMT",
+    "Accept-Ranges": "bytes",
+    "ETag": "\"bb84b72477edc1:0\"",
+    "Server": "Microsoft-IIS/10.0",
+    "X-Powered-By": "ASP.NET",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Date": "Sat, 28 Feb 2026 21:22:09 GMT",
+    "Connection": "close",
+    "Content-Length": "4793727"
+  },
+  "content_type": "application/pdf",
+  "parser_info": {
+    "parser": "pdf",
+    "ocr_attempted": false
+  },
+  "index_url": "https://www.iccat.int/en/RecRes.asp",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

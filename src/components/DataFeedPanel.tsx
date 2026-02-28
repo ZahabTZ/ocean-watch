@@ -1,7 +1,5 @@
-import { useState, useRef, useMemo } from 'react';
-import { MOCK_FEED_ITEMS, FEED_SOURCE_TYPES, FEED_CATEGORIES, FEED_REGIONS, FeedItem, FeedStatus } from '@/data/feedData';
-import { useOnboarding } from '@/hooks/use-onboarding';
-import { buildUserProfile } from '@/lib/userProfile';
+import { useState, useRef } from 'react';
+import { FEED_SOURCE_TYPES, FEED_CATEGORIES, FEED_REGIONS, FeedItem, FeedStatus, getFeedItems } from '@/data/feedData';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const SOURCE_ICONS: Record<string, typeof FileText> = {
-  pdf: FileText, rss: Rss, email: Mail, tweet: Twitter, api: Globe, upload: Upload,
+  pdf: FileText, html: Globe, docx: FileText, unknown: File,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -98,6 +96,11 @@ function FeedCard({ item }: { item: FeedItem }) {
                     <Globe className="h-3 w-3" />
                     {item.rawLanguage}
                   </div>
+                  {item.storedPath && (
+                    <div className="text-[10px] text-muted-foreground font-mono mb-2 truncate">
+                      Stored: {item.storedPath}
+                    </div>
+                  )}
                   <p className="text-[11px] text-muted-foreground leading-relaxed">{item.rawSummary}</p>
                 </div>
                 <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
@@ -193,14 +196,6 @@ function FeedCard({ item }: { item: FeedItem }) {
   );
 }
 
-const REGION_LABELS: Record<string, string[]> = {
-  pacific: ['Eastern Pacific', 'Western Pacific', 'South Pacific', 'North Pacific'],
-  atlantic: ['North Atlantic', 'NW Atlantic', 'Atlantic Ocean'],
-  indian: ['Indian Ocean'],
-  southern: ['Southern Ocean'],
-  multi: [],
-};
-
 export function DataFeedPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSource, setFilterSource] = useState('');
@@ -211,18 +206,8 @@ export function DataFeedPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
-  const { data: onboardingData } = useOnboarding();
-  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
-
-  const preFiltered = useMemo(() => {
-    if (!profile || profile.region === 'multi') return MOCK_FEED_ITEMS;
-    const regionLabels = REGION_LABELS[profile.region] || [];
-    return MOCK_FEED_ITEMS.filter(item =>
-      regionLabels.includes(item.region) || profile.rfmos.includes(item.sourceOrg)
-    );
-  }, [profile]);
-
-  const items = preFiltered.filter(item => {
+  const feedItems = getFeedItems();
+  const items = feedItems.filter(item => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!item.title.toLowerCase().includes(q) && !item.aiSpecies.toLowerCase().includes(q) && !item.aiZone.toLowerCase().includes(q) && !item.sourceOrg.toLowerCase().includes(q) && !item.rawSummary.toLowerCase().includes(q)) return false;
@@ -234,8 +219,9 @@ export function DataFeedPanel() {
     return true;
   });
 
-  const todayUpdates = preFiltered.filter(i => i.minutesAgo < 1440).length;
-  const flaggedCount = preFiltered.filter(i => i.status === 'flagged').length;
+  const todayUpdates = feedItems.filter(i => i.minutesAgo < 1440).length;
+  const flaggedCount = feedItems.filter(i => i.status === 'flagged').length;
+  const latestUpdate = feedItems.length ? feedItems.reduce((min, item) => Math.min(min, item.minutesAgo), Number.POSITIVE_INFINITY) : null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -256,9 +242,11 @@ export function DataFeedPanel() {
               <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
               <span className="text-[10px] font-mono font-bold text-success">LIVE</span>
             </div>
-            <span className="text-[10px] font-mono text-muted-foreground">847 sources monitored</span>
+            <span className="text-[10px] font-mono text-muted-foreground">{feedItems.length} scraped documents</span>
             <span className="text-[10px] font-mono text-muted-foreground">·</span>
-            <span className="text-[10px] font-mono text-muted-foreground">Last update 4 mins ago</span>
+            <span className="text-[10px] font-mono text-muted-foreground">
+              Last update {latestUpdate === null ? 'n/a' : formatTimeAgo(latestUpdate)}
+            </span>
             <span className="text-[10px] font-mono text-muted-foreground">·</span>
             <span className="text-[10px] font-mono text-foreground font-bold">{todayUpdates} updates today</span>
           </div>

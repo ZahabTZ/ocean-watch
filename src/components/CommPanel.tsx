@@ -1,11 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Shield, CheckCircle2, XCircle, Zap, TrendingUp, ChevronDown, ChevronUp, AlertTriangle, Clock, Anchor } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { CATEGORY_META, type AlertCategory } from '@/data/mockData';
-import { useOnboarding } from '@/hooks/use-onboarding';
-import { buildUserProfile } from '@/lib/userProfile';
+import { CATEGORY_META, getComplianceAlerts, type AlertCategory } from '@/data/liveData';
 
 interface RecommendedAction {
   id: string;
@@ -17,76 +15,32 @@ interface RecommendedAction {
   timeAgo: string;
   affectedVessels: string[];
   status: 'pending' | 'approved' | 'rejected';
+  sourceUrl?: string;
 }
 
-const INITIAL_ACTIONS: RecommendedAction[] = [
-  {
-    id: 'ra-1',
-    category: 'quota',
-    title: 'Recalculate vessel allocations for EPO-3 bigeye tuna',
-    description: 'IATTC reduced quota by 8%. Redistributing across MV Pacific Harvester and FV Blue Meridian to stay compliant before March 10 deadline.',
-    confidence: 94,
-    criticality: 'critical',
-    timeAgo: '12m ago',
-    affectedVessels: ['MV Pacific Harvester', 'FV Blue Meridian'],
-    status: 'pending',
-  },
-  {
-    id: 'ra-2',
-    category: 'closure',
-    title: 'Redirect FV Southern Explorer from Area 48.1',
-    description: 'CCAMLR closure begins March 20. Recommend rerouting to Area 48.2 where krill harvesting remains open. Alternate route calculated.',
-    confidence: 89,
-    criticality: 'critical',
-    timeAgo: '34m ago',
-    affectedVessels: ['FV Southern Explorer'],
-    status: 'pending',
-  },
-  {
-    id: 'ra-3',
-    category: 'reporting',
-    title: 'Auto-submit VMS frequency update to transponders',
-    description: 'WCPFC requires 2-hour polling intervals starting April 1. Firmware push ready for MV Pacific Harvester transponder.',
-    confidence: 97,
-    criticality: 'medium',
-    timeAgo: '1h ago',
-    affectedVessels: ['MV Pacific Harvester'],
-    status: 'pending',
-  },
-  {
-    id: 'ra-4',
-    category: 'quota',
-    title: 'Reduce IO-4 yellowfin catch rate by 15%',
-    description: 'IOTC quota cut of 12% means current catch rate will exceed limit by March 18. Recommending daily limit adjustment across 3 vessels.',
-    confidence: 86,
-    criticality: 'high',
-    timeAgo: '2h ago',
-    affectedVessels: ['FV Ocean Spirit', 'MV Coral Runner', 'FV Deep Blue'],
-    status: 'pending',
-  },
-  {
-    id: 'ra-5',
-    category: 'penalties',
-    title: 'File pre-compliance report for NA-2 swordfish bycatch',
-    description: 'Bycatch at 87% utilization. Filing early compliance report reduces penalty risk if threshold is crossed unexpectedly.',
-    confidence: 72,
-    criticality: 'medium',
-    timeAgo: '3h ago',
-    affectedVessels: ['FV Atlantic Prize', 'MV Northern Star'],
-    status: 'pending',
-  },
-  {
-    id: 'ra-6',
-    category: 'species_status',
-    title: 'Update gear restriction protocols for blue shark',
-    description: 'New ICCAT measure restricts wire leaders in NA-2. Recommend notifying vessel captains and updating onboard compliance docs.',
-    confidence: 81,
-    criticality: 'low',
-    timeAgo: '5h ago',
-    affectedVessels: ['FV Atlantic Prize'],
-    status: 'pending',
-  },
-];
+const toTimeAgo = (isoDate?: string) => {
+  const parsed = isoDate ? Date.parse(isoDate) : NaN;
+  if (!Number.isFinite(parsed)) return 'recent';
+  const minutes = Math.max(1, Math.floor((Date.now() - parsed) / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
+const buildRecommendedActions = (): RecommendedAction[] =>
+  getComplianceAlerts().map((alert, idx) => ({
+    id: `ra-${idx + 1}`,
+    category: alert.category,
+    title: alert.title,
+    description: alert.changeDetail,
+    confidence: alert.severity === 'critical' ? 95 : alert.severity === 'warning' ? 88 : 80,
+    criticality: alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'high' : 'medium',
+    timeAgo: toTimeAgo(alert.publishedDate),
+    affectedVessels: alert.affectedVessels,
+    status: alert.status === 'action_required' ? 'pending' : 'approved',
+    sourceUrl: alert.sourceUrl,
+  }));
 
 const criticalityConfig = {
   critical: { label: 'CRITICAL', className: 'bg-destructive/15 text-destructive border-destructive/30' },
@@ -103,18 +57,7 @@ const confidenceColor = (score: number) => {
 };
 
 export const CommPanel = () => {
-  const { data: onboardingData } = useOnboarding();
-  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
-
-  const filteredInitial = useMemo(() => {
-    if (!profile || profile.vesselNames.length === 0) return INITIAL_ACTIONS;
-    const filtered = INITIAL_ACTIONS.filter(a =>
-      a.affectedVessels.some(v => profile.vesselNames.includes(v))
-    );
-    return filtered.length > 0 ? filtered : INITIAL_ACTIONS;
-  }, [profile]);
-
-  const [actions, setActions] = useState(filteredInitial);
+  const [actions, setActions] = useState(buildRecommendedActions);
   const [autonomy, setAutonomy] = useState([25]); // 0-100
   const [showAutonomySlider, setShowAutonomySlider] = useState(false);
 

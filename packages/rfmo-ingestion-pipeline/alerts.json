@@ -1,0 +1,79 @@
+{
+  "alerts": [
+    {
+      "rfmo": "WCPFC",
+      "alert_type": "COMPLIANCE_SYSTEM_CHANGE",
+      "severity": "medium",
+      "document_type": "conservation_management_measures",
+      "title": "CMM 2024-04 - Conservation and Management Measure for Crew Labour Standards | Monitoring and Evaluation",
+      "document_number": "2024-04",
+      "published_date": "2028-01-01",
+      "due_date": null,
+      "what_changed": "Compliance process/system update detected in 'CMM 2024-04 - Conservation and Management Measure for Crew Labour Standards | Monitoring and Evaluation'.",
+      "action_required": "Update compliance SOPs and onboard operations/monitoring teams to the new requirement.",
+      "source_url": "https://cmm.wcpfc.int/measure/cmm-2024-04",
+      "stored_path": "rfmo/wcpfc/2028/d32840a0-3624-4d19-b459-41ab008f536d/v1/raw.html",
+      "extracted_text_path": "rfmo/wcpfc/2028/d32840a0-3624-4d19-b459-41ab008f536d/v1/extracted.txt"
+    },
+    {
+      "rfmo": "WCPFC",
+      "alert_type": "MEETING_DECISION_OR_PROCESS_UPDATE",
+      "severity": "medium",
+      "document_type": "meeting_decisions",
+      "title": "First informal intersessional meeting for the review of CMM 2018-04 Sea Turtles | WCPFC Meetings",
+      "document_number": "2018-04",
+      "published_date": "2026-04-08",
+      "due_date": null,
+      "what_changed": "Meeting decision/process update detected in 'First informal intersessional meeting for the review of CMM 2018-04 Sea Turtles | WCPFC Meetings'.",
+      "action_required": "Prepare policy brief and track follow-on amendments or implementation decisions.",
+      "source_url": "https://meetings.wcpfc.int/meetings/cmm-2018-04-review1",
+      "stored_path": "rfmo/wcpfc/2026/ce6627af-845c-430f-8e7c-c9bbbd59092c/v1/raw.html",
+      "extracted_text_path": "rfmo/wcpfc/2026/ce6627af-845c-430f-8e7c-c9bbbd59092c/v1/extracted.txt"
+    },
+    {
+      "rfmo": "IOTC",
+      "alert_type": "REPORTING_DEADLINE",
+      "severity": "high",
+      "document_type": "circular_letters",
+      "title": "MANDATORY REPORTING ON THE IMPLEMENTATION OF IOTC CONSERVATION AND MANAGEMENT MEASURES (Deadline: 12/03/2026) | IOTC",
+      "document_number": null,
+      "published_date": "2026-03-12",
+      "due_date": "2026-03-12",
+      "what_changed": "Reporting obligation update detected in 'MANDATORY REPORTING ON THE IMPLEMENTATION OF IOTC CONSERVATION AND MANAGEMENT MEASURES (Deadline: 12/03/2026) | IOTC'. Deadline: 2026-03-12.",
+      "action_required": "Assign owner and submit required reporting package before 2026-03-12.",
+      "source_url": "https://iotc.org/documents/mandatory-reporting-implementation-iotc-conservation-and-management-measures-deadline",
+      "stored_path": "rfmo/iotc/2026/96ce2e09-9903-4ddb-8d78-5ab0cde55d90/v1/raw.html",
+      "extracted_text_path": "rfmo/iotc/2026/96ce2e09-9903-4ddb-8d78-5ab0cde55d90/v1/extracted.txt"
+    },
+    {
+      "rfmo": "ICCAT",
+      "alert_type": "REPORTING_DEADLINE",
+      "severity": "high",
+      "document_type": "conservation_management_measures",
+      "title": "Compendium of management recommendations and resolutions, adopted by ICCAT for the conservation of Atlantic tunas and tuna\u2010like species",
+      "document_number": null,
+      "published_date": null,
+      "due_date": null,
+      "what_changed": "Reporting obligation update detected in 'Compendium of management recommendations and resolutions, adopted by ICCAT for the conservation of Atlantic tunas and tuna\u2010like species'.",
+      "action_required": "Assign owner, confirm reporting scope, and submit required reporting package by deadline.",
+      "source_url": "https://www.iccat.int/Documents/Recs/COMPENDIUM_ACTIVE_ENG.pdf",
+      "stored_path": "rfmo/iccat/2026/0996a56e-0492-4cad-987d-196acaaac2a9/v1/raw.pdf",
+      "extracted_text_path": "rfmo/iccat/2026/0996a56e-0492-4cad-987d-196acaaac2a9/v1/extracted.txt"
+    },
+    {
+      "rfmo": "ICCAT",
+      "alert_type": "MEETING_DECISION_OR_PROCESS_UPDATE",
+      "severity": "medium",
+      "document_type": "conservation_management_measures",
+      "title": "ICCAT\u00b7CICTA\u00b7CICAA",
+      "document_number": null,
+      "published_date": null,
+      "due_date": null,
+      "what_changed": "Meeting decision/process update detected in 'ICCAT\u00b7CICTA\u00b7CICAA'.",
+      "action_required": "Prepare policy brief and track follow-on amendments or implementation decisions.",
+      "source_url": "https://www.iccat.int/en/CBIniciatives.html",
+      "stored_path": "rfmo/iccat/2026/91f4763e-0612-41af-a8d8-9abcbbe042ee/v1/raw.html",
+      "extracted_text_path": "rfmo/iccat/2026/91f4763e-0612-41af-a8d8-9abcbbe042ee/v1/extracted.txt"
+    }
+  ]
+}

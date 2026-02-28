@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/communication-vanuatu-0",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-12-01",
+  "discovered_at": "2026-02-28T21:26:09.932418+00:00",
+  "file_hash": "096be7a81a0705c1641c4d4c04f938ba3d063f9fedbce40be4263965d0fe02ae",
+  "status": "ingested",
+  "title": "A COMMUNICATION FROM VANUATU | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:18 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/communication-vanuatu-0>; rel=\"canonical\",</node/20733>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311582-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:22 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

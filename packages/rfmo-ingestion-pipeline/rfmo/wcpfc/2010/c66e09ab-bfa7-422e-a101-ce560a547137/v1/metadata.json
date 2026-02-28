@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/measure/cmm-2009-09",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2010-02-09",
+  "discovered_at": "2026-02-28T21:22:39.288621+00:00",
+  "file_hash": "eec83bcc485b0820fa2edb07aedc247c3dc02be65ebdd6c7255e165c1bb0317f",
+  "status": "ingested",
+  "title": "CMM 2009-09 - Conservation and Management Measure for Vessels Without Nationality | Monitoring and Evaluation",
+  "document_number": "2009-09",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:25:58 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "75666",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Tue, 24 Feb 2026 04:21:57 GMT",
+    "ETag": "W/\"1771906917\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "58001297 54049961",
+    "Age": "1152",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

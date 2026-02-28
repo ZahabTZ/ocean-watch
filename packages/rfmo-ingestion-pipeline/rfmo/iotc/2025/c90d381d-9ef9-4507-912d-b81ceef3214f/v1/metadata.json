@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/regarding-iotc-tropical-tuna-allocated-catch-limits-2026",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-12-22",
+  "discovered_at": "2026-02-28T21:26:09.932099+00:00",
+  "file_hash": "798aa049df90e6b099d1cf75bb354777614905922b55877ca1017026b9b5f9dc",
+  "status": "ingested",
+  "title": "REGARDING IOTC TROPICAL TUNA ALLOCATED CATCH LIMITS FOR 2026 | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:16 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/regarding-iotc-tropical-tuna-allocated-catch-limits-2026>; rel=\"canonical\",</node/20781>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311575-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:15 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

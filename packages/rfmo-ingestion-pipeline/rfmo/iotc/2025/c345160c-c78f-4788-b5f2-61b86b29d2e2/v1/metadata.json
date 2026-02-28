@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/intersessional-decision-delayed-implementation-dfad-register",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-12-01",
+  "discovered_at": "2026-02-28T21:26:09.932523+00:00",
+  "file_hash": "f2cf72112398fd55069a0bbe17e1a81d59388f228095ffe880ea2d9f2595d804",
+  "status": "ingested",
+  "title": "INTERSESSIONAL DECISION ON THE DELAYED IMPLEMENTATION OF THE DFAD REGISTER | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:18 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/intersessional-decision-delayed-implementation-dfad-register>; rel=\"canonical\",</node/20731>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311584-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:24 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

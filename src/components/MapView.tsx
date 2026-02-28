@@ -2,13 +2,12 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { buildMapZones, buildMapVessels, MapZone } from '@/data/mapData';
-import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
+import { getComplianceAlerts, getFleetVessels } from '@/data/liveData';
+import { enrichMapVesselsWithGfw, isGfwConfigured } from '@/lib/gfwClient';
 import { getVesselStatusConfig, getSeverityConfig } from '@/lib/alertUtils';
 import { Ship, ChevronRight, Fish, MapPin, Calendar, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useOnboarding } from '@/hooks/use-onboarding';
-import { buildUserProfile, filterAlerts, filterVessels } from '@/lib/userProfile';
 
 const STATUS_COLORS: Record<string, { fill: string; stroke: string }> = {
   red: { fill: 'rgba(220, 60, 60, 0.25)', stroke: 'rgba(220, 60, 60, 0.8)' },
@@ -22,9 +21,9 @@ const VESSEL_COLORS: Record<string, string> = {
   at_risk: '#ef4444',
 };
 
-function ZoneDetailPanel({ zone, onClose, allAlerts, allVessels }: { zone: MapZone; onClose: () => void; allAlerts: typeof MOCK_ALERTS; allVessels: typeof MOCK_VESSELS }) {
-  const alerts = allAlerts.filter(a => zone.alertIds.includes(a.id));
-  const vessels = allVessels.filter(v => zone.vesselIds.includes(v.id));
+function ZoneDetailPanel({ zone, onClose }: { zone: MapZone; onClose: () => void }) {
+  const alerts = getComplianceAlerts().filter(a => zone.alertIds.includes(a.id));
+  const vessels = getFleetVessels().filter(v => zone.vesselIds.includes(v.id));
   const statusLabel = zone.status === 'red' ? 'CRITICAL' : zone.status === 'yellow' ? 'WATCH' : 'CLEAR';
   const statusText = zone.status === 'red'
     ? 'text-destructive'
@@ -131,16 +130,47 @@ function ZoneDetailPanel({ zone, onClose, allAlerts, allVessels }: { zone: MapZo
 export function MapView() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const { data: onboardingData } = useOnboarding();
-
-  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
-  const userAlerts = useMemo(() => profile ? filterAlerts(MOCK_ALERTS, profile) : MOCK_ALERTS, [profile]);
-  const userVessels = useMemo(() => profile ? filterVessels(MOCK_VESSELS, profile) : MOCK_VESSELS, [profile]);
-
-  const zones = useMemo(() => buildMapZones(userAlerts, userVessels), [userAlerts, userVessels]);
-  const vessels = useMemo(() => buildMapVessels(userVessels), [userVessels]);
+  const zones = useMemo(() => buildMapZones(), []);
+  const [vessels, setVessels] = useState(() => buildMapVessels());
   const [selectedZone, setSelectedZone] = useState<MapZone | null>(null);
+  const [gfwStatus, setGfwStatus] = useState<'disabled' | 'loading' | 'ready' | 'error'>('disabled');
+  const [gfwUpdatedCount, setGfwUpdatedCount] = useState(0);
   const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
+  const vesselLayerRef = useRef<L.LayerGroup | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const baseVessels = buildMapVessels();
+
+    const run = async () => {
+      setVessels(baseVessels);
+
+      if (!isGfwConfigured()) {
+        setGfwStatus('disabled');
+        setGfwUpdatedCount(0);
+        return;
+      }
+
+      setGfwStatus('loading');
+      try {
+        const enriched = await enrichMapVesselsWithGfw(baseVessels);
+        if (!mounted) return;
+        const updatedCount = enriched.filter(v => v.positionSource === 'gfw').length;
+        setVessels(enriched);
+        setGfwUpdatedCount(updatedCount);
+        setGfwStatus('ready');
+      } catch {
+        if (!mounted) return;
+        setGfwStatus('error');
+        setGfwUpdatedCount(0);
+      }
+    };
+
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -183,9 +213,27 @@ export function MapView() {
       polygonLayersRef.current.set(zone.id, polygon);
     });
 
-    // Add vessel markers
-    vessels.forEach(vessel => {
+    vesselLayerRef.current = L.layerGroup().addTo(map);
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, [zones]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const vesselLayer = vesselLayerRef.current;
+    if (!map || !vesselLayer) return;
+
+    vesselLayer.clearLayers();
+    const gfwVessels = vessels.filter(vessel => vessel.positionSource === 'gfw' && vessel.position);
+    gfwVessels.forEach(vessel => {
       const color = VESSEL_COLORS[vessel.status];
+      const timestampText = vessel.positionTimestamp ? `<br/>Pos Time: ${new Date(vessel.positionTimestamp).toISOString()}` : '';
+      const sourceText = 'GFW';
       L.circleMarker(vessel.position as L.LatLngExpression, {
         radius: 5,
         color,
@@ -194,19 +242,12 @@ export function MapView() {
         weight: vessel.status === 'at_risk' ? 2 : 1,
       })
         .bindTooltip(
-          `<span style="font-family:monospace;font-size:11px">${vessel.flag} ${vessel.name}</span>`,
-          { className: 'dark-tooltip' }
+          `<span style=\"font-family:monospace;font-size:11px\">${vessel.flag} ${vessel.name}<br/>Source: ${sourceText}${timestampText}</span>`,
+          { className: 'dark-tooltip' },
         )
-        .addTo(map);
+        .addTo(vesselLayer);
     });
-
-    mapInstanceRef.current = map;
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
-  }, [zones, vessels]);
+  }, [vessels]);
 
   // Fly to selected zone and highlight
   useEffect(() => {
@@ -250,10 +291,19 @@ export function MapView() {
             <span className="text-[11px] text-muted-foreground">{item.label}</span>
           </div>
         ))}
+        <div className="pt-1 border-t border-border/60 mt-1">
+          <span className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider">Positions</span>
+          <p className="text-[11px] text-muted-foreground">
+            {gfwStatus === 'disabled' && 'GFW required (set VITE_GFW_API_TOKEN)'}
+            {gfwStatus === 'loading' && 'Loading GFW positions...'}
+            {gfwStatus === 'ready' && `GFW positioned ${gfwUpdatedCount}/${vessels.length} vessels`}
+            {gfwStatus === 'error' && 'GFW fetch failed (no vessel positions shown)'}
+          </p>
+        </div>
       </div>
 
       {selectedZone && (
-        <ZoneDetailPanel zone={selectedZone} onClose={() => setSelectedZone(null)} allAlerts={userAlerts} allVessels={userVessels} />
+        <ZoneDetailPanel zone={selectedZone} onClose={() => setSelectedZone(null)} />
       )}
     </div>
   );

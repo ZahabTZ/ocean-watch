@@ -110,6 +110,7 @@ class RunMetrics(BaseModel):
     finished_at: Optional[datetime] = None
     duration_seconds: Optional[float] = None
     documents_discovered: int = 0
+    documents_filtered_out: int = 0
     documents_fetched: int = 0
     documents_ingested: int = 0
     documents_skipped: int = 0

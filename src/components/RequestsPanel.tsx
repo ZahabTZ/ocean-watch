@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { MOCK_RESEARCH_REQUESTS, ResearchRequest } from '@/data/researchData';
+import { DEMO_RESEARCH_REQUESTS, ResearchRequest } from '@/data/researchData';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Inbox, Send, User, Microscope, MapPin, Calendar, Wrench, DollarSign, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
 
 export function RequestsPanel() {
-  const [requests] = useState(MOCK_RESEARCH_REQUESTS);
+  const [requests] = useState(DEMO_RESEARCH_REQUESTS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [localMessages, setLocalMessages] = useState<Record<string, typeof MOCK_RESEARCH_REQUESTS[0]['chatMessages']>>({});
+  const [localMessages, setLocalMessages] = useState<Record<string, typeof DEMO_RESEARCH_REQUESTS[0]['chatMessages']>>({});
 
   const selected = requests.find(r => r.id === selectedId);
   const messages = selected ? [...selected.chatMessages, ...(localMessages[selected.id] || [])] : [];

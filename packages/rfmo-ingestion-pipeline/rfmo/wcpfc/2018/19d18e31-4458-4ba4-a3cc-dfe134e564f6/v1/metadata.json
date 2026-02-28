@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/measure/cmm-2017-03",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2018-02-05",
+  "discovered_at": "2026-02-28T21:22:39.287822+00:00",
+  "file_hash": "151405ac71abc90b007592c9997649e6fc2e6e5ddbc5bcfcd8aa59e1bc441fd3",
+  "status": "ingested",
+  "title": "CMM 2017-03 - Conservation and Management Measure for the protection of WCPFC Regional Observer Programme Observers | Monitoring and Evaluation",
+  "document_number": "2017-03",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:25:50 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "93406",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Tue, 24 Feb 2026 07:24:01 GMT",
+    "ETag": "W/\"1771917841\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "54050189 51756401",
+    "Age": "1151",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

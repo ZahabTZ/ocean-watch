@@ -1,0 +1,33 @@
+{
+  "source_url": "https://www.iccat.int/en/CBIniciatives.html",
+  "rfmo": "ICCAT",
+  "document_type": "conservation_management_measures",
+  "published_date": null,
+  "discovered_at": "2026-02-28T21:22:05.333309+00:00",
+  "file_hash": "5b541295fdd84a5215078115cc000877c5c60ae3570a65345820572a0af03745",
+  "status": "ingested",
+  "title": "ICCAT\u00b7CICTA\u00b7CICAA",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Atlantic Ocean",
+  "headers": {
+    "Content-Type": "text/html",
+    "Last-Modified": "Fri, 06 Feb 2026 10:26:29 GMT",
+    "Accept-Ranges": "bytes",
+    "ETag": "\"76193e5397dc1:0\"",
+    "Server": "Microsoft-IIS/10.0",
+    "X-Powered-By": "ASP.NET",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Date": "Sat, 28 Feb 2026 21:22:36 GMT",
+    "Connection": "close",
+    "Content-Length": "52829"
+  },
+  "content_type": "text/html",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://www.iccat.int/en/RecRes.asp",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

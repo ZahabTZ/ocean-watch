@@ -1,0 +1,36 @@
+{
+  "source_url": "https://iotc.org/sites/default/files/documents/2025/12/Circular_2025-39-Implementation_DFAD_RegisterE.pdf",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-12-01",
+  "discovered_at": "2026-02-28T21:26:09.932584+00:00",
+  "file_hash": "2aa05889b79c45818e20887ae5dd567a11f374219530325797ab9b754ef5b8d0",
+  "status": "ingested",
+  "title": "Circular_2025-39-Implementation_DFAD_RegisterE.pdf",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:18 GMT",
+    "Content-Type": "application/pdf",
+    "Content-Length": "454780",
+    "Last-Modified": "Mon, 01 Dec 2025 08:19:15 GMT",
+    "Connection": "close",
+    "Cache-Control": "max-age=1209600",
+    "Expires": "Sat, 14 Mar 2026 21:26:18 GMT",
+    "Content-Disposition": "inline",
+    "ETag": "\"692d4f83-6f07c\"",
+    "X-Powered-By": "PleskLin",
+    "Accept-Ranges": "bytes"
+  },
+  "content_type": "application/pdf",
+  "parser_info": {
+    "parser": "pdf",
+    "ocr_attempted": false
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/communication-china-regarding-2026-allocated-catch-limits-yellowfin-tuna",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2026-01-09",
+  "discovered_at": "2026-02-28T21:26:09.931872+00:00",
+  "file_hash": "2617b0760d2d0ee1a735e2a6c459d782e5eee544e8f05c6333f846057569d942",
+  "status": "ingested",
+  "title": "A COMMUNICATION FROM CHINA REGARDING 2026 ALLOCATED CATCH LIMITS FOR YELLOWFIN TUNA | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:14 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/communication-china-regarding-2026-allocated-catch-limits-yellowfin-tuna>; rel=\"canonical\",</node/20795>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311572-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:12 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

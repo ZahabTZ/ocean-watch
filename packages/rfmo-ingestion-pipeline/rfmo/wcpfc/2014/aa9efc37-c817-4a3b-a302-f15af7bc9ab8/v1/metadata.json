@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/measure/cmm-2013-04",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2014-02-04",
+  "discovered_at": "2026-02-28T21:22:39.288415+00:00",
+  "file_hash": "84dd467805caf830f446c8a1c83293626ac611cbc5544c93f954c49f7028bb51",
+  "status": "ingested",
+  "title": "CMM 2013-04 - Conservation and Management Measure for WCPFC Implementation of a Unique Vessel Identifier (UVI) | Monitoring and Evaluation",
+  "document_number": "2013-04",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:25:56 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "72286",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Wed, 25 Feb 2026 16:32:13 GMT",
+    "ETag": "W/\"1772037133\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "54050199 51756412",
+    "Age": "1151",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

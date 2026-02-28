@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/invitation-16th-meeting-technical-committee-allocation-criteria-3-%E2%80%93-6-february-2026",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-10-29",
+  "discovered_at": "2026-02-28T21:26:09.933245+00:00",
+  "file_hash": "832ada3a82021236ad5b28d5ed2ad7dc2b9655e50ea2d257e3f80be89824ba3c",
+  "status": "ingested",
+  "title": "INVITATION TO THE 16TH MEETING OF THE TECHNICAL COMMITTEE ON ALLOCATION CRITERIA 3 \u2013 6 FEBRUARY 2026 | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:20 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/invitation-16th-meeting-technical-committee-allocation-criteria-3-%E2%80%93-6-february-2026>; rel=\"canonical\",</node/20639>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311595-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:35 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

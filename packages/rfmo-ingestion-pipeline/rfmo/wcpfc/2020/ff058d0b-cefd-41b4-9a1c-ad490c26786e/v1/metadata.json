@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/measure/cmm-2019-03",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2020-02-09",
+  "discovered_at": "2026-02-28T21:22:39.287306+00:00",
+  "file_hash": "ea09401bdd5e98b41944b625b18008eefc9808634ecdaea26d71322ffe8cad13",
+  "status": "ingested",
+  "title": "CMM 2019-03 - Conservation and Management Measure for North Pacific Albacore | Monitoring and Evaluation",
+  "document_number": "2019-03",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:25:46 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "77389",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Tue, 24 Feb 2026 00:36:47 GMT",
+    "ETag": "W/\"1771893407\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "58001281 54049936",
+    "Age": "1153",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

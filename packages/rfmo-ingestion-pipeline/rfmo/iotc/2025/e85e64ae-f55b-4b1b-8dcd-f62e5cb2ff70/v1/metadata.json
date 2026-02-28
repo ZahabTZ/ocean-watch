@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/invitation-28th-session-iotc-scientific-committee",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-09-03",
+  "discovered_at": "2026-02-28T21:26:09.933751+00:00",
+  "file_hash": "b0f69b2eb73d68a09336a800892ef3007ffebea3320102c382bd21a12ccf191c",
+  "status": "ingested",
+  "title": "INVITATION TO THE 28TH SESSION OF THE IOTC SCIENTIFIC COMMITTEE | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:21 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/invitation-28th-session-iotc-scientific-committee>; rel=\"canonical\",</node/20558>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311603-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:43 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

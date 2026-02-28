@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/declaration-alternatives-measures-sharks-landed-frozen-2026-2027-and-2028-resolution-2508",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-09-03",
+  "discovered_at": "2026-02-28T21:26:09.933646+00:00",
+  "file_hash": "91badec7bd26a3116616b887c54e1db96b54f7d57c23c0a68488405df15e1e1a",
+  "status": "ingested",
+  "title": "DECLARATION OF ALTERNATIVES MEASURES FOR SHARKS LANDED FROZEN IN 2026, 2027 AND 2028 (RESOLUTION 25/08) | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:21 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/declaration-alternatives-measures-sharks-landed-frozen-2026-2027-and-2028-resolution-2508>; rel=\"canonical\",</node/20560>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311602-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:42 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

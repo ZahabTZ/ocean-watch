@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/erratum-iotc-circular-2024-40",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-11-04",
+  "discovered_at": "2026-02-28T21:26:09.933080+00:00",
+  "file_hash": "c306585ae147cbbcc8f60830ebee2591be5f3a0d9e831349114fbaa4da1897e6",
+  "status": "ingested",
+  "title": "ERRATUM FOR IOTC CIRCULAR 2024-40 | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:20 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/erratum-iotc-circular-2024-40>; rel=\"canonical\",</node/20641>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311594-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:34 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

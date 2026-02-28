@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/resolution/resolution-2018-01",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2019-02-12",
+  "discovered_at": "2026-02-28T21:22:39.289606+00:00",
+  "file_hash": "2f2cf1c689a9ff807537c1fccb3f0ef3b3a32e2f0600ce44dca8f9d9f5c7b007",
+  "status": "ingested",
+  "title": "Resolution 2018-01 - Resolution on Labour Standards for Crew on Fishing Vessels | Monitoring and Evaluation",
+  "document_number": "2018-01",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:05 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "72472",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Tue, 24 Feb 2026 05:10:24 GMT",
+    "ETag": "W/\"1771909824\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "58001305 54049976",
+    "Age": "1150",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

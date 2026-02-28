@@ -1,0 +1,48 @@
+{
+  "source_url": "https://cmm.wcpfc.int/measure/cmm-2025-02",
+  "rfmo": "WCPFC",
+  "document_type": "conservation_management_measures",
+  "published_date": "2026-02-16",
+  "discovered_at": "2026-02-28T21:22:39.286002+00:00",
+  "file_hash": "49aabd9df7924cec8eddebcefa532eea38a56cba4dffdf2de213aa03cb1e3ffb",
+  "status": "ingested",
+  "title": "CMM 2025-02 - Conservation and Management Measure for Bigeye, Yellowfin and Skipjack Tuna in the Western And Central Pacific Ocean | Monitoring and Evaluation",
+  "document_number": "2025-02",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:25:35 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "73645",
+    "Connection": "close",
+    "Vary": "Accept-Encoding, Cookie",
+    "Cache-Control": "max-age=3600, public",
+    "X-Drupal-Dynamic-Cache": "MISS",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Last-Modified": "Mon, 23 Feb 2026 06:02:54 GMT",
+    "ETag": "W/\"1771826574\"",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "Access-Control-Allow-Origin": "*",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Varnish": "58001265 58001019",
+    "Age": "1153",
+    "X-VC-Cache": "HIT",
+    "Accept-Ranges": "bytes",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://cmm.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

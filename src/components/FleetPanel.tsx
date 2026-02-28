@@ -1,13 +1,24 @@
-import { MOCK_VESSELS } from '@/data/mockData';
+import { getFleetVessels } from '@/data/liveData';
 import { getVesselStatusConfig } from '@/lib/alertUtils';
 import { Ship } from 'lucide-react';
 
 export function FleetPanel() {
+  const vessels = getFleetVessels();
+
+  if (!vessels.length) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h2 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">Fleet Status</h2>
+        <p className="text-xs text-muted-foreground">No fleet profile found. Complete onboarding to load live fleet data.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">Fleet Status</h2>
       <div className="space-y-2">
-        {MOCK_VESSELS.map((vessel) => {
+        {vessels.map((vessel) => {
           const statusCfg = getVesselStatusConfig(vessel.status);
           return (
             <div key={vessel.id} className="flex items-center gap-3 rounded-md border border-border bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors">

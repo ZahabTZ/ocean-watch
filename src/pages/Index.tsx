@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
-import { MOCK_RESEARCH_REQUESTS } from '@/data/researchData';
+import { getComplianceAlerts, hasFleetProfile } from '@/data/liveData';
+import { DEMO_RESEARCH_REQUESTS } from '@/data/researchData';
 import { DashboardView } from '@/components/DashboardView';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
@@ -15,9 +15,30 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 const Index = () => {
   const navigate = useNavigate();
   const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community' | 'requests' | 'feed'>('map');
-  const pendingRequests = MOCK_RESEARCH_REQUESTS.filter(r => r.status === 'pending').length;
+  const pendingRequests = DEMO_RESEARCH_REQUESTS.filter(r => r.status === 'pending').length;
+  const alerts = getComplianceAlerts();
+  const profileReady = hasFleetProfile();
 
-  const actionCount = MOCK_ALERTS.filter((a) => a.status === 'action_required').length;
+  const actionCount = alerts.filter((a) => a.status === 'action_required').length;
+
+  if (!profileReady) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-md w-full rounded-xl border border-border bg-card p-6 text-center space-y-4">
+          <h1 className="text-lg font-semibold text-foreground">Fleet Profile Required</h1>
+          <p className="text-sm text-muted-foreground">
+            Live alerts are profile-scoped. Complete onboarding first to load applicable RFMO updates for your fleet.
+          </p>
+          <button
+            onClick={() => navigate('/onboarding')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+          >
+            Open Onboarding
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background">

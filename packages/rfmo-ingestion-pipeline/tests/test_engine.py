@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from urllib.request import urlopen
 
-from rfmo_ingest_pipeline.connectors import RFMOAdapter
+from rfmo_ingest_pipeline.connectors import HtmlRFMOAdapter, RFMOAdapter
 from rfmo_ingest_pipeline.engine import IngestionEngine
 from rfmo_ingest_pipeline.models import DocumentCategory, DocumentRef, ParsedDocument, RawDocument
 
@@ -132,3 +132,23 @@ def test_metrics_endpoint_exposes_counters(tmp_path) -> None:
         engine.stop_metrics_server()
 
     assert "rfmo_documents_ingested_total" in payload
+
+
+def test_high_signal_filter_blocks_news_and_keeps_policy_documents() -> None:
+    adapter = HtmlRFMOAdapter(
+        name="test",
+        rfmo="ICCAT",
+        category_indexes={},
+        user_agent="test-agent",
+    )
+
+    assert not adapter._is_document_candidate(  # type: ignore[attr-defined]
+        "https://example.org/news/press-release",
+        "Press release on workshop",
+        "media update event",
+    )
+    assert adapter._is_document_candidate(  # type: ignore[attr-defined]
+        "https://example.org/docs/CMM-2024-03.pdf",
+        "CMM 2024-03 Tropical tuna measure",
+        "shall enter into force on 2024-06-01",
+    )

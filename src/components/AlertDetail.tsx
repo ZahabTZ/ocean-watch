@@ -1,4 +1,4 @@
-import { ComplianceAlert, RAW_SOURCE_EXAMPLE } from '@/data/mockData';
+import { ComplianceAlert, RAW_SOURCE_EXAMPLE } from '@/data/liveData';
 import { getSeverityConfig } from '@/lib/alertUtils';
 import { Badge } from '@/components/ui/badge';
 import { Ship, Calendar, MapPin, Fish, FileText, ArrowRight, AlertCircle } from 'lucide-react';
@@ -75,7 +75,7 @@ export function AlertDetail({ alert }: AlertDetailProps) {
         </div>
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <span className="text-[10px] font-mono text-muted-foreground block mb-1">RAW: 47-page PDF in Spanish (IATTC)</span>
+            <span className="text-[10px] font-mono text-muted-foreground block mb-1">RAW: Scraped RFMO source document</span>
             <div className="rounded-md bg-background/80 border border-border p-3 max-h-32 overflow-y-auto">
               <pre className="text-[10px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed">
                 {RAW_SOURCE_EXAMPLE.slice(0, 400)}...

@@ -1,56 +1,88 @@
-# MAREWATCH — Fisheries Compliance Intelligence
+# Welcome to your Lovable project
 
-MAREWATCH is a compliance intelligence platform that monitors RFMO (Regional Fisheries Management Organization) regulations and alerts fishing fleet operators to quota changes, zone closures, reporting requirements, and penalties in real time.
+## Project info
 
-## Features
+**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
-- **Onboarding Wizard** — 5-step setup: role selection, fleet registration (with WCPFC vessel registry lookup), data source configuration, alert preferences, and launch
-- **Dashboard** — Compliance score, alert timeline, quota tracker, and prioritized action queue — all filtered to the user's fleet and region
-- **Interactive Map** — Leaflet-based map showing vessel positions, zone statuses (critical/watch/clear), and zone detail panels with alerts and recommended actions
-- **Data Feed** — Aggregated feed from PDFs, RSS, email, Twitter, and APIs across 8 RFMOs (IATTC, IOTC, CCAMLR, WCPFC, ICCAT, SPRFMO, NAFO, NPFC), with AI-read summaries and action recommendations
-- **Compliance Chat** — Natural language assistant that queries a structured RFMO knowledge base scoped to the user's fleet
-- **AI Action Panel** — Recommended actions with confidence scores and an adjustable autonomy slider (manual → full auto)
-- **Research Portal** — Separate interface for fisheries data analysis and research requests
+## How can I edit this code?
 
-## Tech Stack
+There are several ways of editing your application.
 
-| Layer | Tools |
-|-------|-------|
-| Framework | React 18, TypeScript, Vite |
-| UI | shadcn/ui (Radix), Tailwind CSS, Lucide icons |
-| Maps | Leaflet |
-| Charts | Recharts |
-| Routing | React Router v6 |
-| Data | TanStack React Query |
-| Forms | React Hook Form + Zod |
+**Use Lovable**
 
-## Getting Started
+Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
 
 ```sh
-git clone https://github.com/ZahabTZ/ocean-watch.git
-cd ocean-watch
-npm install
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-The dev server runs on `http://localhost:8080`.
+**Edit a file directly in GitHub**
 
-## Scripts
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run preview` | Preview production build |
+**Use GitHub Codespaces**
 
-## Project Structure
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## What technologies are used for this project?
+
+This project is built with:
+
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
+
+## Global Fishing Watch Map Positions
+
+To enable live vessel position enrichment on the map via Global Fishing Watch API:
+
+1. Create a `.env.local` file in the project root.
+2. Add:
+
+```sh
+VITE_GFW_API_TOKEN=your_gfw_bearer_token
 ```
-src/
-├── components/       # UI components (DashboardView, MapView, ChatPanel, CommPanel, DataFeedPanel, etc.)
-├── data/             # Mock data (alerts, vessels, RFMO sources, feed items, map zones)
-├── hooks/            # Custom hooks (useOnboarding, useMobile)
-├── lib/              # Utilities (onboarding, userProfile, complianceChat, alertUtils, wcpfcRegistry)
-├── pages/            # Route pages (Index, Onboarding, Research)
-└── components/ui/    # shadcn/ui primitives
-```
+
+Notes:
+- Without this token, the map falls back to built-in mock vessel coordinates.
+- With token configured, the app queries GFW vessel search + latest position events and updates map markers when matches are found.
+
+## How can I deploy this project?
+
+Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+
+## Can I connect a custom domain to my Lovable project?
+
+Yes, you can!
+
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)

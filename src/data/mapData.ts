@@ -1,5 +1,5 @@
 import { LatLngExpression } from 'leaflet';
-import { MOCK_ALERTS, MOCK_VESSELS } from './mockData';
+import { getComplianceAlerts, getFleetVessels } from './liveData';
 
 export interface MapZone {
   id: string;
@@ -29,10 +29,9 @@ const ZONE_POLYGONS: Record<string, LatLngExpression[]> = {
   ],
 };
 
-export function buildMapZones(
-  alerts: typeof MOCK_ALERTS = MOCK_ALERTS,
-  vessels: typeof MOCK_VESSELS = MOCK_VESSELS,
-): MapZone[] {
+export function buildMapZones(): MapZone[] {
+  const alerts = getComplianceAlerts();
+  const vessels = getFleetVessels();
   const allZoneNames = new Set([
     ...alerts.map(a => a.zone),
     ...vessels.map(v => v.zone),
@@ -64,32 +63,26 @@ export interface MapVessel {
   id: string;
   name: string;
   flag: string;
-  position: LatLngExpression;
+  position?: LatLngExpression;
   status: 'compliant' | 'action_needed' | 'at_risk';
   zone: string;
   species: string[];
+  imo?: string;
+  mmsi?: string;
+  positionSource?: 'gfw';
+  positionTimestamp?: string;
+  gfwVesselId?: string;
 }
 
-// Scatter vessels within their zone polygons
-const VESSEL_POSITIONS: Record<string, [number, number]> = {
-  'v1': [-12, -118],
-  'v2': [-18, -108],
-  'v3': [-10, 62],
-  'v4': [-15, 70],
-  'v5': [-18, 75],
-  'v6': [-62, -52],
-  'v7': [32, -42],
-  'v8': [35, -38],
-};
-
-export function buildMapVessels(vessels: typeof MOCK_VESSELS = MOCK_VESSELS): MapVessel[] {
-  return vessels.map(v => ({
+export function buildMapVessels(): MapVessel[] {
+  return getFleetVessels().map(v => ({
     id: v.id,
     name: v.name,
     flag: v.flag,
-    position: VESSEL_POSITIONS[v.id] || [0, 0],
     status: v.status,
     zone: v.zone,
     species: v.species,
+    imo: v.imo,
+    mmsi: v.mmsi,
   }));
 }

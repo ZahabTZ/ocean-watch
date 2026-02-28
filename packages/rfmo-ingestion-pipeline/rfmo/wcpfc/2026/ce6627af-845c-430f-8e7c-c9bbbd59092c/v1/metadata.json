@@ -1,0 +1,41 @@
+{
+  "source_url": "https://meetings.wcpfc.int/meetings/cmm-2018-04-review1",
+  "rfmo": "WCPFC",
+  "document_type": "meeting_decisions",
+  "published_date": "2026-04-08",
+  "discovered_at": "2026-02-28T21:22:42.361403+00:00",
+  "file_hash": "2cb11a34c92067673918b88188d82b62beb0d0e66073e7cfbe838db6ad600971",
+  "status": "ingested",
+  "title": "First informal intersessional meeting for the review of CMM 2018-04 Sea Turtles | WCPFC Meetings",
+  "document_number": "2018-04",
+  "meeting_reference": null,
+  "rfmo_region": "Western and Central Pacific Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:08 GMT",
+    "Content-Type": "text/html; charset=UTF-8",
+    "Content-Length": "85026",
+    "Connection": "close",
+    "Vary": "Origin",
+    "Cache-Control": "must-revalidate, no-cache, private",
+    "X-Drupal-Dynamic-Cache": "UNCACHEABLE (poor cacheability)",
+    "Content-language": "en",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "X-Generator": "Drupal 11 (https://www.drupal.org)",
+    "X-Drupal-Cache": "HIT",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "X-Wodby-Node": "865a937a-49a1-4e6b-89dc-5dfefec01fc5",
+    "Strict-Transport-Security": "max-age=63072000"
+  },
+  "content_type": "text/html; charset=UTF-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://meetings.wcpfc.int",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

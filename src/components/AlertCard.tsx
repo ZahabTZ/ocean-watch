@@ -1,4 +1,4 @@
-import { ComplianceAlert } from '@/data/mockData';
+import { ComplianceAlert } from '@/data/liveData';
 import { getSeverityConfig, getStatusConfig } from '@/lib/alertUtils';
 import { Badge } from '@/components/ui/badge';
 import { Ship, Calendar, MapPin, Fish, ChevronRight } from 'lucide-react';

@@ -76,6 +76,9 @@ class IngestionEngine:
             refs = adapter.list_documents()
             metrics.documents_discovered += len(refs)
             self.metrics.add("rfmo_documents_discovered_total", float(len(refs)))
+            filtered_out = self._adapter_filtered_count(adapter)
+            metrics.documents_filtered_out += filtered_out
+            self.metrics.add("rfmo_documents_filtered_out_total", float(filtered_out))
         except Exception as exc:  # noqa: BLE001
             metrics.failures += 1
             self.metrics.add("rfmo_failures_total", 1.0)
@@ -219,6 +222,16 @@ class IngestionEngine:
             if row.adapter_name == adapter.name:
                 return row
         return SourceHealth(rfmo=adapter.rfmo, adapter_name=adapter.name)
+
+    def _adapter_filtered_count(self, adapter: RFMOAdapter) -> int:
+        getter = getattr(adapter, "last_scan_counts", None)
+        if getter is None:
+            return 0
+        try:
+            _, filtered = getter()
+            return int(filtered)
+        except Exception:  # noqa: BLE001
+            return 0
 
     def run_adapter(self, adapter_name: str) -> IngestionRunResult:
         return self.run_once(adapter_names=[adapter_name])

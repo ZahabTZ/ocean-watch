@@ -1,4 +1,4 @@
-import { AlertSeverity, AlertStatus } from '@/data/mockData';
+import { AlertSeverity, AlertStatus } from '@/data/liveData';
 import { AlertTriangle, AlertCircle, Info, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 export function getSeverityConfig(severity: AlertSeverity) {

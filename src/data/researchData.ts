@@ -1,5 +1,3 @@
-import { MOCK_VESSELS } from './mockData';
-
 export interface VesselCapability {
   id: string;
   vesselId: string;
@@ -107,7 +105,7 @@ export const VESSEL_CAPABILITIES: VesselCapability[] = [
   },
 ];
 
-export const MOCK_RESEARCH_REQUESTS: ResearchRequest[] = [
+export const DEMO_RESEARCH_REQUESTS: ResearchRequest[] = [
   {
     id: 'rr1',
     researcherName: 'Dr. Elena Vasquez',

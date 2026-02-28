@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useOnboarding } from '@/hooks/use-onboarding';
-import type { OnboardingData } from '@/lib/onboarding';
 import {
-  Anchor, ChevronRight, ChevronLeft, Check, Ship, Globe2, Rss, Twitter, Mail,
+  Anchor, ChevronRight, ChevronLeft, Check, Ship, Globe2, Mail,
   FileText, Plus, X, Wifi, Database, Bell, Smartphone, MessageSquare, Zap,
   MapPin, Fish, User, Building2, ArrowRight, Sparkles, Upload, Clock,
   CalendarDays, AlertTriangle, Radio, Search, Loader2, Link2, Shield,
@@ -11,6 +9,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { fetchWcpfcVesselsByCompanyOrRegistration, type GovernmentVesselRecord } from '@/lib/wcpfcRegistry';
+import { DEMO_COMPANY, DEMO_FLEET_PROFILE, saveFleetProfile, seedDemoFleetProfile } from '@/data/liveData';
 
 const STEPS = [
   { num: 1, label: 'Profile', icon: <User className="h-4 w-4" /> },
@@ -27,11 +26,10 @@ const ROLES = [
 ];
 
 const REGIONS = [
-  { id: 'pacific', label: 'Pacific Ocean', rfmos: ['IATTC', 'WCPFC', 'SPRFMO', 'NPFC'] },
-  { id: 'atlantic', label: 'Atlantic Ocean', rfmos: ['ICCAT', 'NAFO'] },
+  { id: 'pacific', label: 'Pacific Ocean', rfmos: ['WCPFC'] },
+  { id: 'atlantic', label: 'Atlantic Ocean', rfmos: ['ICCAT'] },
   { id: 'indian', label: 'Indian Ocean', rfmos: ['IOTC'] },
-  { id: 'southern', label: 'Southern Ocean', rfmos: ['CCAMLR'] },
-  { id: 'multi', label: 'Multiple Regions', rfmos: ['IATTC', 'WCPFC', 'IOTC', 'ICCAT', 'CCAMLR', 'SPRFMO', 'NAFO', 'NPFC'] },
+  { id: 'multi', label: 'Multiple Regions', rfmos: ['WCPFC', 'IOTC', 'ICCAT'] },
 ];
 
 const SPECIES_LIST = [
@@ -43,59 +41,47 @@ const SPECIES_LIST = [
 const GEAR_TYPES = ['Purse Seine', 'Longline', 'Trawl', 'Pole & Line', 'Gillnet', 'Trap'];
 
 const ZONE_MAP: Record<string, string[]> = {
-  IATTC: ['EPO-1', 'EPO-2', 'EPO-3'],
-  WCPFC: ['WCPO High Seas', 'WCPO-1'],
-  IOTC: ['IO-1', 'IO-2', 'IO-3', 'IO-4'],
-  ICCAT: ['NA-1', 'NA-2', 'SA-1'],
-  CCAMLR: ['Area 48.1', 'Area 48.2', 'Area 58'],
-  SPRFMO: ['SP-1', 'SP-2'],
-  NAFO: ['3L', '3M', '3NO'],
-  NPFC: ['NP-1', 'NP-2'],
+  WCPFC: ['WCPO High Seas'],
+  IOTC: ['IO-4'],
+  ICCAT: ['NA-2'],
 };
 
 const SOURCE_TYPES = [
-  { id: 'rfmo', label: 'RFMO Official Feeds', icon: <Globe2 className="h-5 w-5" />, desc: 'Auto-added based on your region', auto: true },
-  { id: 'rss', label: 'RSS / Atom Feeds', icon: <Rss className="h-5 w-5" />, desc: 'Paste any regulatory feed URL' },
-  { id: 'email', label: 'Email Forwarding', icon: <Mail className="h-5 w-5" />, desc: 'Forward updates to your unique inbox' },
-  { id: 'twitter', label: 'X / Twitter Accounts', icon: <Twitter className="h-5 w-5" />, desc: 'Monitor @IOTC_Secretariat etc' },
-  { id: 'gov', label: 'Government Portals', icon: <Building2 className="h-5 w-5" />, desc: 'URL monitoring for regulatory sites' },
-  { id: 'upload', label: 'Custom Upload', icon: <Upload className="h-5 w-5" />, desc: 'Drop a PDF anytime for AI extraction' },
+  { id: 'rfmo_iccat', label: 'ICCAT Official Documents', icon: <Globe2 className="h-5 w-5" />, desc: 'Scraped ingestion feed (live)', auto: true },
+  { id: 'rfmo_wcpfc', label: 'WCPFC Official Documents', icon: <Globe2 className="h-5 w-5" />, desc: 'Scraped ingestion feed (live)', auto: true },
+  { id: 'rfmo_iotc', label: 'IOTC Official Documents', icon: <Globe2 className="h-5 w-5" />, desc: 'Scraped ingestion feed (live)', auto: true },
+  { id: 'wcpfc_registry', label: 'WCPFC Vessel Registry', icon: <Database className="h-5 w-5" />, desc: 'Live company/vessel lookup source', auto: true },
+  { id: 'gfw_tracking', label: 'Global Fishing Watch Tracking', icon: <Wifi className="h-5 w-5" />, desc: 'Live vessel position enrichment (requires API token)', auto: true },
 ];
 
 const GLOBAL_DATA_SOURCES = [
-  { id: 'gfw', label: 'Global Fishing Watch', desc: 'Satellite-based vessel tracking & fishing activity', icon: '🛰️' },
-  { id: 'fao', label: 'FAO FishStatJ', desc: 'Global fisheries production & trade statistics', icon: '🐟' },
-  { id: 'ais', label: 'AIS Marine Traffic', desc: 'Automatic Identification System vessel positions', icon: '📡' },
-  { id: 'iuu', label: 'IUU Vessel Blacklist', desc: 'Combined RFMO IUU vessel lists & sanctions', icon: '🚫' },
-  { id: 'noaa', label: 'NOAA Fisheries Data', desc: 'US federal fisheries science & management data', icon: '🌊' },
+  { id: 'gfw', label: 'Global Fishing Watch', desc: 'Satellite-based vessel tracking and latest positions', icon: '🛰️' },
+  { id: 'wcpfc_registry', label: 'WCPFC Registry', desc: 'Company and vessel registry records', icon: '📋' },
 ];
 
 const AI_RECOMMENDED_SOURCES: Record<string, { id: string; label: string; desc: string; reason: string; icon: string }[]> = {
   pacific: [
-    { id: 'spc', label: 'SPC / Pacific Community', desc: 'Pacific Island fisheries observer & catch data', reason: 'Covers your Pacific operating region', icon: '🏝️' },
-    { id: 'ffa', label: 'FFA Vessel Register', desc: 'Forum Fisheries Agency vessel licensing database', reason: 'Required for WCPO compliance', icon: '📋' },
-    { id: 'pna', label: 'PNA VDS Scheme', desc: 'Vessel Day Scheme effort allocation data', reason: 'Critical for purse seine fleet ops', icon: '📊' },
+    { id: 'rfmo_wcpfc', label: 'WCPFC Documents', desc: 'Live WCPFC ingestion feed', reason: 'Primary RFMO for Pacific profile', icon: '🌊' },
   ],
   atlantic: [
-    { id: 'euf', label: 'EU Fleet Register', desc: 'European fishing fleet capacity & licensing', reason: 'Covers Atlantic EU-flagged vessels', icon: '🇪🇺' },
-    { id: 'nmfs', label: 'NMFS Permits Database', desc: 'US Atlantic & Gulf fishing permits', reason: 'Required for NA-1/NA-2 zone ops', icon: '📜' },
+    { id: 'rfmo_iccat', label: 'ICCAT Documents', desc: 'Live ICCAT ingestion feed', reason: 'Primary RFMO for Atlantic profile', icon: '🌊' },
   ],
   indian: [
-    { id: 'iotcdb', label: 'IOTC Catch Database', desc: 'Indian Ocean catch & effort statistics', reason: 'Direct feed from your primary RFMO', icon: '🎣' },
-    { id: 'iioe', label: 'IIOE Oceanographic Data', desc: 'Indian Ocean environmental & species data', reason: 'Correlates environmental shifts to catch', icon: '🌡️' },
-  ],
-  southern: [
-    { id: 'ccamlrdb', label: 'CCAMLR Catch Limits', desc: 'Antarctic catch documentation scheme data', reason: 'Mandatory for Southern Ocean ops', icon: '🧊' },
-    { id: 'scar', label: 'SCAR Biodiversity DB', desc: 'Antarctic ecosystem & biodiversity monitoring', reason: 'Required for precautionary approach', icon: '🐧' },
+    { id: 'rfmo_iotc', label: 'IOTC Documents', desc: 'Live IOTC ingestion feed', reason: 'Primary RFMO for Indian profile', icon: '🌊' },
   ],
   multi: [
-    { id: 'spc', label: 'SPC / Pacific Community', desc: 'Pacific Island fisheries observer & catch data', reason: 'Covers Pacific operations', icon: '🏝️' },
-    { id: 'euf', label: 'EU Fleet Register', desc: 'European fishing fleet capacity & licensing', reason: 'Covers Atlantic operations', icon: '🇪🇺' },
-    { id: 'iotcdb', label: 'IOTC Catch Database', desc: 'Indian Ocean catch & effort statistics', reason: 'Covers Indian Ocean operations', icon: '🎣' },
+    { id: 'rfmo_wcpfc', label: 'WCPFC Documents', desc: 'Live WCPFC ingestion feed', reason: 'Needed for Pacific segment', icon: '🌊' },
+    { id: 'rfmo_iotc', label: 'IOTC Documents', desc: 'Live IOTC ingestion feed', reason: 'Needed for Indian segment', icon: '🌊' },
+    { id: 'rfmo_iccat', label: 'ICCAT Documents', desc: 'Live ICCAT ingestion feed', reason: 'Needed for Atlantic segment', icon: '🌊' },
   ],
 };
 
-type RegistryLookupResult = GovernmentVesselRecord;
+const REGISTRY_VESSELS_SAMPLE = [
+  { id: 'REG-001', name: 'FV Southern Cross', imo: '9234567', flag: '🇳🇿', type: 'Longline', registered: '2019' },
+  { id: 'REG-002', name: 'MV Pacific Star', imo: '9345678', flag: '🇫🇯', type: 'Purse Seine', registered: '2021' },
+  { id: 'REG-003', name: 'FV Ocean Venture', imo: '9456789', flag: '🇦🇺', type: 'Trawl', registered: '2018' },
+  { id: 'REG-004', name: 'RV Coral Explorer', imo: '9567890', flag: '🇵🇬', type: 'Pole & Line', registered: '2022' },
+];
 
 const ALERT_CATEGORIES = [
   { id: 'quota', label: 'Quota Changes', icon: '📊' },
@@ -138,46 +124,48 @@ const mapGovernmentGear = (vesselType?: string) => {
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { data: savedData, saveOnboarding } = useOnboarding();
   const [step, setStep] = useState(1);
 
   // Step 1
-  const [role, setRole] = useState(savedData?.role ?? '');
-  const [orgName, setOrgName] = useState(savedData?.orgName ?? '');
-  const [registryQuery, setRegistryQuery] = useState('');
+  const [role, setRole] = useState('manager');
+  const [orgName, setOrgName] = useState(DEMO_COMPANY.name);
+  const [registryQuery, setRegistryQuery] = useState(DEMO_COMPANY.registrationId);
   const [registryLoading, setRegistryLoading] = useState(false);
   const [registryError, setRegistryError] = useState('');
   const [registryLastImported, setRegistryLastImported] = useState(0);
-  const [region, setRegion] = useState(savedData?.region ?? '');
+  const [region, setRegion] = useState('pacific');
 
   // Step 2
   const [vessels, setVessels] = useState<OnboardingVessel[]>(
-    savedData?.vessels?.length
-      ? savedData.vessels.map(v => ({ ...v, trackingTag: v.trackingTag ?? '' }))
-      : [{ name: '', zone: '', species: '', gear: '', trackingTag: '' }],
+    DEMO_FLEET_PROFILE.vessels.map((v, idx) => ({
+      name: v.name,
+      zone: v.zone,
+      species: v.species,
+      gear: idx < 2 ? 'Longline' : idx === 2 ? 'Purse Seine' : 'Longline',
+      trackingTag: `DEMO-${idx + 1}`,
+    }))
   );
-  const [registryResults, setRegistryResults] = useState<RegistryLookupResult[]>([]);
-  const [registrySearchedFor, setRegistrySearchedFor] = useState('');
+  const [registryCompanyId, setRegistryCompanyId] = useState('');
+  const [registrySearching, setRegistrySearching] = useState(false);
+  const [registryResults, setRegistryResults] = useState<typeof REGISTRY_VESSELS_SAMPLE | null>(null);
   const [selectedRegistryVessels, setSelectedRegistryVessels] = useState<Set<string>>(new Set());
   const [registrySubscribed, setRegistrySubscribed] = useState(false);
 
   // Step 3
-  const [enabledSources, setEnabledSources] = useState<string[]>(savedData?.enabledSources ?? ['rfmo']);
-  const [rssFeeds, setRssFeeds] = useState<string[]>(savedData?.rssFeeds ?? []);
-  const [rssFeedUrl, setRssFeedUrl] = useState('');
-  const [twitterHandles, setTwitterHandles] = useState<string[]>(savedData?.twitterHandles ?? []);
-  const [twitterInput, setTwitterInput] = useState('');
-  const [govUrls, setGovUrls] = useState<string[]>(savedData?.govUrls ?? []);
-  const [govInput, setGovInput] = useState('');
-  const [enabledGlobalSources, setEnabledGlobalSources] = useState<string[]>(
-    savedData?.enabledGlobalSources ?? GLOBAL_DATA_SOURCES.map(s => s.id)
-  );
-  const [enabledAiSources, setEnabledAiSources] = useState<string[]>(savedData?.enabledAiSources ?? []);
+  const [enabledSources, setEnabledSources] = useState<string[]>([
+    'rfmo_wcpfc',
+    'rfmo_iccat',
+    'rfmo_iotc',
+    'wcpfc_registry',
+    'gfw_tracking',
+  ]);
+  const [enabledGlobalSources, setEnabledGlobalSources] = useState<string[]>(GLOBAL_DATA_SOURCES.map(s => s.id));
+  const [enabledAiSources, setEnabledAiSources] = useState<string[]>(['rfmo_wcpfc']);
 
   // Step 4
-  const [alertCategories, setAlertCategories] = useState<string[]>(savedData?.alertCategories ?? ['quota', 'closure', 'reporting', 'species', 'penalties']);
-  const [channels, setChannels] = useState(savedData?.channels ?? { email: true, sms: false, whatsapp: false, push: true });
-  const [urgency, setUrgency] = useState(savedData?.urgency ?? 'immediate');
+  const [alertCategories, setAlertCategories] = useState<string[]>(['quota', 'closure', 'reporting', 'species', 'penalties']);
+  const [channels, setChannels] = useState({ email: true, sms: false, whatsapp: false, push: true });
+  const [urgency, setUrgency] = useState('immediate');
 
   const progress = (step / STEPS.length) * 100;
   const selectedRegion = REGIONS.find(r => r.id === region);
@@ -185,12 +173,16 @@ const Onboarding = () => {
   const availableZones = recommendedRfmos.flatMap(r => ZONE_MAP[r] || []);
   const aiSources = region ? (AI_RECOMMENDED_SOURCES[region] || []) : [];
 
-  // Initialize AI sources when region changes
-  const [lastRegion, setLastRegion] = useState('');
-  if (region && region !== lastRegion) {
-    setLastRegion(region);
-    setEnabledAiSources((AI_RECOMMENDED_SOURCES[region] || []).map(s => s.id));
-  }
+  // Keep source recommendations aligned with selected region.
+  useEffect(() => {
+    const regionRfmos = (AI_RECOMMENDED_SOURCES[region] || []).map(s => s.id);
+    setEnabledSources(prev => {
+      const mandatory = ['wcpfc_registry', 'gfw_tracking'];
+      const merged = new Set([...prev.filter(id => !id.startsWith('rfmo_')), ...mandatory, ...regionRfmos]);
+      return Array.from(merged);
+    });
+    setEnabledAiSources(regionRfmos.length ? regionRfmos : []);
+  }, [region]);
 
   const next = () => step < 5 && setStep(step + 1);
   const prev = () => step > 1 && setStep(step - 1);
@@ -205,10 +197,6 @@ const Onboarding = () => {
   const toggleGlobalSource = (id: string) => setEnabledGlobalSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleAiSource = (id: string) => setEnabledAiSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
-  const addItem = (value: string, setter: React.Dispatch<React.SetStateAction<string[]>>, inputSetter: React.Dispatch<React.SetStateAction<string>>) => {
-    if (value.trim()) { setter(p => [...p, value.trim()]); inputSetter(''); }
-  };
-  const removeItem = (i: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => setter(p => p.filter((_, idx) => idx !== i));
   const loadGovernmentVessels = async () => {
     const query = registryQuery.trim();
     if (!query) {
@@ -218,33 +206,53 @@ const Onboarding = () => {
 
     setRegistryLoading(true);
     setRegistryError('');
-    setRegistryLastImported(0);
 
     try {
       const results = await fetchWcpfcVesselsByCompanyOrRegistration(query);
-      setRegistrySearchedFor(query);
-
       if (!results.length) {
-        setRegistryResults([]);
-        setSelectedRegistryVessels(new Set());
         setRegistryError('No registered vessels found for that company/registration ID.');
+        setRegistryLastImported(0);
         return;
       }
 
-      setRegistryResults(results);
-      setSelectedRegistryVessels(new Set());
+      const importedVessels: OnboardingVessel[] = results.map((record: GovernmentVesselRecord) => ({
+        name: record.name,
+        zone: '',
+        species: '',
+        gear: mapGovernmentGear(record.vesselType),
+        source: 'government',
+        registrationNumber: record.registrationNumber,
+        ownerName: record.ownerName,
+        imo: record.imo,
+        ircs: record.ircs,
+        win: record.win,
+        sourceUrl: record.sourceUrl,
+      }));
+
+      setVessels(importedVessels);
+      setRegistryLastImported(importedVessels.length);
+      setStep(2);
 
       if (!orgName.trim()) {
         const owner = results.find(r => r.ownerName)?.ownerName;
         if (owner) setOrgName(owner);
       }
     } catch {
-      setRegistryResults([]);
-      setSelectedRegistryVessels(new Set());
       setRegistryError('Government registry lookup failed. Please try again in a minute.');
+      setRegistryLastImported(0);
     } finally {
       setRegistryLoading(false);
     }
+  };
+
+  const searchRegistry = () => {
+    if (!registryCompanyId.trim()) return;
+    setRegistrySearching(true);
+    setRegistryResults(null);
+    setTimeout(() => {
+      setRegistryResults(REGISTRY_VESSELS_SAMPLE);
+      setRegistrySearching(false);
+    }, 1500);
   };
 
   const toggleRegistryVessel = (id: string) => {
@@ -256,39 +264,60 @@ const Onboarding = () => {
   };
 
   const addRegistryVessels = () => {
-    if (!registryResults.length || selectedRegistryVessels.size === 0) return;
-
-    const selectedRows = registryResults.filter(v => selectedRegistryVessels.has(v.vid));
-    const newVessels: OnboardingVessel[] = selectedRows.map(v => ({
+    if (!registryResults) return;
+    const toAdd = registryResults.filter(v => selectedRegistryVessels.has(v.id));
+    const newVessels: OnboardingVessel[] = toAdd.map(v => ({
       name: v.name,
       zone: '',
       species: '',
-      gear: mapGovernmentGear(v.vesselType),
+      gear: v.type,
       trackingTag: '',
-      source: 'government',
-      registrationNumber: v.registrationNumber,
-      ownerName: v.ownerName,
-      imo: v.imo,
-      ircs: v.ircs,
-      win: v.win,
-      sourceUrl: v.sourceUrl,
     }));
-
     setVessels(p => {
       const cleaned = p.filter(v => v.name.trim());
       return cleaned.length > 0 ? [...cleaned, ...newVessels] : newVessels;
     });
-
-    setRegistryLastImported(newVessels.length);
     setSelectedRegistryVessels(new Set());
-
-    if (!orgName.trim()) {
-      const owner = selectedRows.find(v => v.ownerName)?.ownerName;
-      if (owner) setOrgName(owner);
-    }
+    setRegistryResults(null);
+    setRegistryCompanyId('');
   };
 
   const filledVessels = vessels.filter(v => v.name.trim());
+
+  const persistProfileAndLaunch = () => {
+    const sourceToRfmo: Record<string, string> = {
+      rfmo_iccat: 'ICCAT',
+      rfmo_wcpfc: 'WCPFC',
+      rfmo_iotc: 'IOTC',
+    };
+    const selectedRfmos = Array.from(
+      new Set(
+        enabledSources
+          .map(source => sourceToRfmo[source])
+          .filter(Boolean),
+      ),
+    );
+
+    const profile = {
+      companyName: orgName.trim() || DEMO_COMPANY.name,
+      registrationId: registryQuery.trim() || DEMO_COMPANY.registrationId,
+      rfmos: selectedRfmos.length ? selectedRfmos : recommendedRfmos,
+      zones: Array.from(new Set(filledVessels.map(v => v.zone).filter(Boolean))),
+      species: Array.from(new Set(filledVessels.map(v => v.species).filter(Boolean))),
+      vessels: filledVessels.map(v => ({
+        name: v.name.trim(),
+        zone: v.zone,
+        species: v.species,
+        gear: v.gear,
+        imo: v.imo,
+        ircs: v.ircs,
+        win: v.win,
+        sourceUrl: v.sourceUrl,
+      })),
+    };
+    saveFleetProfile(profile);
+    navigate('/');
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -378,6 +407,68 @@ const Onboarding = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Company / Registration ID</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    value={registryQuery}
+                    onChange={e => setRegistryQuery(e.target.value)}
+                    placeholder="e.g. FT-200002 or RONGHENG"
+                    className="flex-1 px-3 py-2.5 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                  />
+                  <button
+                    onClick={loadGovernmentVessels}
+                    disabled={registryLoading}
+                    className="sm:w-auto px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {registryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                    Pull from Registry
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Source: WCPFC Record of Fishing Vessels (government/intergovernmental registry).
+                </p>
+                {registryError && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 space-y-2">
+                    <p className="text-[11px] text-destructive">{registryError}</p>
+                    <p className="text-[10px] text-destructive/80">
+                      Try an exact registration number/IMO, or continue with the preloaded demo profile.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => {
+                          seedDemoFleetProfile();
+                          navigate('/');
+                        }}
+                        className="px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors"
+                      >
+                        Use Demo Fleet Now
+                      </button>
+                      <button
+                        onClick={() => setStep(2)}
+                        className="px-2.5 py-1.5 rounded-md border border-border text-[10px] text-foreground hover:bg-secondary/30 transition-colors"
+                      >
+                        Continue with Manual Fleet
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!registryError && registryLastImported > 0 && (
+                  <p className="text-[11px] text-success flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Imported {registryLastImported} registered vessel{registryLastImported > 1 ? 's' : ''}.
+                  </p>
+                )}
+                <button
+                  onClick={() => {
+                    seedDemoFleetProfile();
+                    navigate('/');
+                  }}
+                  className="mt-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Load working demo profile and continue
+                </button>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Region of Operation</label>
@@ -431,63 +522,54 @@ const Onboarding = () => {
                 </button>
               </div>
 
-              {/* WCPFC Registry Lookup */}
+              {/* Registry Lookup */}
               <div className="rounded-lg border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Database className="h-4 w-4 text-primary" />
+                    <Shield className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-foreground">WCPFC Government Registry</p>
-                    <p className="text-[10px] text-muted-foreground">Search by company name or registration number</p>
+                    <p className="text-xs font-semibold text-foreground">National Registry Lookup</p>
+                    <p className="text-[10px] text-muted-foreground">Find registered vessels by your company ID</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <input
-                    value={registryQuery}
-                    onChange={e => setRegistryQuery(e.target.value)}
-                    placeholder="e.g. SHENZHEN RONGHENG OCEAN FISHERY CO.,LTD."
+                    value={registryCompanyId}
+                    onChange={e => setRegistryCompanyId(e.target.value)}
+                    placeholder="Enter Company / Operator ID (e.g. CID-48291)"
                     className="flex-1 px-3 py-2 rounded-md border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                    onKeyDown={e => e.key === 'Enter' && loadGovernmentVessels()}
+                    onKeyDown={e => e.key === 'Enter' && searchRegistry()}
                   />
                   <button
-                    onClick={loadGovernmentVessels}
-                    disabled={registryLoading}
+                    onClick={searchRegistry}
+                    disabled={registrySearching || !registryCompanyId.trim()}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {registryLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                    {registrySearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                     Search
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Source: WCPFC Record of Fishing Vessels (government/intergovernmental registry).
-                </p>
-                {registryError && <p className="text-[11px] text-destructive">{registryError}</p>}
-                {!registryError && registryLastImported > 0 && (
-                  <p className="text-[11px] text-success flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Imported {registryLastImported} vessel{registryLastImported > 1 ? 's' : ''} to your fleet.
-                  </p>
-                )}
 
-                {registryLoading && (
+                {registrySearching && (
                   <div className="flex items-center gap-2 py-3 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-xs font-mono">Querying national registries…</span>
                   </div>
                 )}
 
-                {registryResults.length > 0 && (
+                {registryResults && (
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-mono uppercase text-muted-foreground">
-                        {registryResults.length} vessels found for "{registrySearchedFor || registryQuery.trim()}"
+                        {registryResults.length} vessels found for "{registryCompanyId}"
                       </p>
                       <button
                         onClick={() => {
                           if (selectedRegistryVessels.size === registryResults.length) {
                             setSelectedRegistryVessels(new Set());
                           } else {
-                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.vid)));
+                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.id)));
                           }
                         }}
                         className="text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
@@ -495,64 +577,29 @@ const Onboarding = () => {
                         {selectedRegistryVessels.size === registryResults.length ? 'Deselect All' : 'Select All'}
                       </button>
                     </div>
-
-                    {registryResults.map(result => {
-                      const selected = selectedRegistryVessels.has(result.vid);
+                    {registryResults.map(rv => {
+                      const selected = selectedRegistryVessels.has(rv.id);
                       return (
                         <button
-                          key={result.vid}
-                          onClick={() => toggleRegistryVessel(result.vid)}
-                          className={`w-full rounded-lg border p-3 text-left transition-all ${
+                          key={rv.id}
+                          onClick={() => toggleRegistryVessel(rv.id)}
+                          className={`w-full flex items-center gap-3 p-2.5 rounded-md border text-left transition-all ${
                             selected ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary/10 hover:bg-secondary/20'
                           }`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className={`mt-0.5 h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 ${
-                              selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
-                            }`}>
-                              {selected && <Check className="h-3 w-3" />}
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
-                                  <Anchor className="h-3 w-3 text-primary/70 flex-shrink-0" />
-                                  {result.name}
-                                </p>
-                                <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">VID {result.vid}</span>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                                <Building2 className="h-2.5 w-2.5 flex-shrink-0" /> {result.ownerName || '—'}
-                              </p>
-                              <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
-                                  <FileText className="h-2.5 w-2.5 text-primary/60" /> {result.registrationNumber || '—'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
-                                  <Globe2 className="h-2.5 w-2.5 text-primary/60" /> {result.imo || '—'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
-                                  <Radio className="h-2.5 w-2.5 text-primary/60" /> {result.ircs || '—'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
-                                  <Shield className="h-2.5 w-2.5 text-primary/60" /> {result.win || '—'}
-                                </span>
-                                {result.vesselType && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
-                                    <Ship className="h-2.5 w-2.5" /> {result.vesselType}
-                                  </span>
-                                )}
-                              </div>
-                              {result.sourceUrl && (
-                                <span className="inline-flex items-center gap-1 text-[10px] text-primary">
-                                  <Link2 className="h-2.5 w-2.5" /> Government source available
-                                </span>
-                              )}
-                            </div>
+                          <div className={`h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                          }`}>
+                            {selected && <Check className="h-3 w-3" />}
+                          </div>
+                          <span className="text-sm">{rv.flag}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{rv.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">IMO {rv.imo} · {rv.type} · Reg. {rv.registered}</p>
                           </div>
                         </button>
                       );
                     })}
-
                     {selectedRegistryVessels.size > 0 && (
                       <button
                         onClick={addRegistryVessels}
@@ -563,6 +610,7 @@ const Onboarding = () => {
                       </button>
                     )}
 
+                    {/* Subscribe to registry */}
                     <div className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
                       registrySubscribed ? 'border-success/40 bg-success/5' : 'border-border bg-secondary/10'
                     }`}>
@@ -729,76 +777,12 @@ const Onboarding = () => {
                         <Switch checked={enabled} onCheckedChange={() => toggleSource(src.id)} className="data-[state=checked]:bg-primary flex-shrink-0" />
                       </div>
 
-                      {/* Inline config */}
-                      {enabled && src.id === 'rss' && (
-                        <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                          <div className="flex gap-2">
-                            <input value={rssFeedUrl} onChange={e => setRssFeedUrl(e.target.value)} placeholder="https://rfmo.org/feed.xml"
-                              className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                              onKeyDown={e => e.key === 'Enter' && addItem(rssFeedUrl, setRssFeeds, setRssFeedUrl)} />
-                            <button onClick={() => addItem(rssFeedUrl, setRssFeeds, setRssFeedUrl)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
-                          </div>
-                          {rssFeeds.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {rssFeeds.map((f, i) => (
-                                <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-                                  <Rss className="h-2.5 w-2.5" />{f.length > 35 ? f.slice(0, 35) + '…' : f}
-                                  <button onClick={() => removeItem(i, setRssFeeds)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {enabled && src.id === 'twitter' && (
-                        <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                          <div className="flex gap-2">
-                            <input value={twitterInput} onChange={e => setTwitterInput(e.target.value)} placeholder="@IOTC_Secretariat"
-                              className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                              onKeyDown={e => e.key === 'Enter' && addItem(twitterInput.replace(/^@/, ''), setTwitterHandles, setTwitterInput)} />
-                            <button onClick={() => addItem(twitterInput.replace(/^@/, ''), setTwitterHandles, setTwitterInput)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
-                          </div>
-                          {twitterHandles.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {twitterHandles.map((h, i) => (
-                                <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-                                  @{h}<button onClick={() => removeItem(i, setTwitterHandles)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {enabled && src.id === 'email' && (
+                      {enabled && src.id === 'gfw_tracking' && (
                         <div className="mt-3 pt-3 border-t border-border/50">
                           <div className="flex items-center gap-2 p-2.5 rounded-md bg-secondary/20 border border-border/50">
-                            <Mail className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-[11px] font-mono text-foreground">ingest-{orgName ? orgName.toLowerCase().replace(/[^a-z0-9]/g, '') : 'yourorg'}@marewatch.io</span>
-                            <span className="text-[9px] text-muted-foreground ml-auto">Forward emails here</span>
+                            <Wifi className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-[11px] font-mono text-foreground">Requires `VITE_GFW_API_TOKEN` in environment</span>
                           </div>
-                        </div>
-                      )}
-
-                      {enabled && src.id === 'gov' && (
-                        <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                          <div className="flex gap-2">
-                            <input value={govInput} onChange={e => setGovInput(e.target.value)} placeholder="https://fisheries.gov.au/regulations"
-                              className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                              onKeyDown={e => e.key === 'Enter' && addItem(govInput, setGovUrls, setGovInput)} />
-                            <button onClick={() => addItem(govInput, setGovUrls, setGovInput)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
-                          </div>
-                          {govUrls.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {govUrls.map((u, i) => (
-                                <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-                                  <Globe2 className="h-2.5 w-2.5" />{u.length > 35 ? u.slice(0, 35) + '…' : u}
-                                  <button onClick={() => removeItem(i, setGovUrls)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1000,26 +984,7 @@ const Onboarding = () => {
               </div>
 
               <div className="text-center pt-2">
-                <button onClick={() => {
-                  const onboardingData: OnboardingData = {
-                    role,
-                    orgName,
-                    region,
-                    vessels: vessels.filter(v => v.name.trim()),
-                    enabledSources,
-                    rssFeeds,
-                    twitterHandles,
-                    govUrls,
-                    enabledGlobalSources,
-                    enabledAiSources,
-                    alertCategories,
-                    channels,
-                    urgency,
-                    completedAt: new Date().toISOString(),
-                  };
-                  saveOnboarding(onboardingData);
-                  navigate('/');
-                }}
+                <button onClick={persistProfileAndLaunch}
                   className="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors">
                   Start Monitoring
                   <Zap className="h-4 w-4" />

@@ -234,6 +234,7 @@ class MetricsRegistry:
         self._lock = threading.Lock()
         self._values: dict[str, float] = {
             "rfmo_documents_discovered_total": 0.0,
+            "rfmo_documents_filtered_out_total": 0.0,
             "rfmo_documents_fetched_total": 0.0,
             "rfmo_documents_ingested_total": 0.0,
             "rfmo_documents_skipped_total": 0.0,

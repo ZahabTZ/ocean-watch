@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/request-observer-status-republic-turkiye",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2026-01-26",
+  "discovered_at": "2026-02-28T21:26:09.931517+00:00",
+  "file_hash": "85b26edd8b78278bc31410f8c150f59bc6ff8cc272ddb7289bc298c4c3aae07c",
+  "status": "ingested",
+  "title": "REQUEST FOR OBSERVER STATUS FROM THE REPUBLIC OF TURKIYE | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:13 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/request-observer-status-republic-turkiye>; rel=\"canonical\",</node/21039>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311567-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:07 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}

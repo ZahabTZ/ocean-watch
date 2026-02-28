@@ -1,14 +1,25 @@
-import { MOCK_RFMO_SOURCES } from '@/data/mockData';
+import { getRfmoSources } from '@/data/liveData';
 import { Wifi, WifiOff, Loader2 } from 'lucide-react';
 
 export function SourcesGrid() {
+  const sources = getRfmoSources();
+
+  if (!sources.length) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h2 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">RFMO Sources</h2>
+        <p className="text-xs text-muted-foreground">No live sources available until a fleet profile is configured.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
-        RFMO Sources — {MOCK_RFMO_SOURCES.length} Monitored
+        RFMO Sources — {sources.length} Monitored
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {MOCK_RFMO_SOURCES.map((source) => (
+        {sources.map((source) => (
           <div key={source.id} className="flex items-center gap-3 rounded-md border border-border bg-secondary/20 px-3 py-2">
             <div className="flex-shrink-0">
               {source.status === 'online' && <Wifi className="h-3.5 w-3.5 text-success" />}

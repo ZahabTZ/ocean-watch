@@ -7,7 +7,7 @@ from datetime import date
 from html import unescape
 from typing import Iterable
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
@@ -26,6 +26,10 @@ DATE_PATTERNS = [
 ]
 DOC_NUMBER_RE = re.compile(r"\b(?:CMM|REC|RES|Recommendation|Resolution)\s*[-:]?\s*([0-9]{4}[-/][0-9]{1,3})\b", re.IGNORECASE)
 MEETING_REF_RE = re.compile(r"\b(?:COM|WCPFC|IOTC)[-_ ]?(?:\d{1,2}|20\d{2})\b", re.IGNORECASE)
+POLICY_ID_RE = re.compile(
+    r"\b(?:CMM|REC|RES|Recommendation|Resolution|Circular)\s*[-:]?\s*(?:\d{4}[-/]\d{1,3}|[A-Z]{1,4}-\d{2,4})\b",
+    re.IGNORECASE,
+)
 
 
 class RFMOAdapter(ABC):
@@ -65,10 +69,14 @@ class HtmlRFMOAdapter(RFMOAdapter):
         self.respect_robots = respect_robots
         self._robots_cache: dict[str, RobotFileParser] = {}
         self._last_request_at = 0.0
+        self._last_filtered_out = 0
+        self._last_scanned = 0
 
     def list_documents(self) -> list[DocumentRef]:
         refs: list[DocumentRef] = []
         seen_urls: set[str] = set()
+        scanned_links = 0
+        filtered_out = 0
 
         for category, index_urls in self.category_indexes.items():
             for index_url in index_urls:
@@ -79,10 +87,15 @@ class HtmlRFMOAdapter(RFMOAdapter):
                     continue
 
                 for href, link_text, context in self._extract_links(html_text):
-                    absolute = urljoin(index_url, href)
+                    scanned_links += 1
+                    absolute = urldefrag(urljoin(index_url, href))[0]
                     if absolute in seen_urls:
                         continue
+                    if absolute == urldefrag(index_url)[0]:
+                        filtered_out += 1
+                        continue
                     if not self._is_document_candidate(absolute, link_text, context):
+                        filtered_out += 1
                         continue
 
                     seen_urls.add(absolute)
@@ -97,13 +110,19 @@ class HtmlRFMOAdapter(RFMOAdapter):
                             document_number=self._extract_document_number(f"{link_text} {context}"),
                             meeting_reference=self._extract_meeting_reference(f"{link_text} {context}"),
                             rfmo_region=self._default_region(),
+                            metadata={"queue": "hot"},
                         )
                     )
 
+        self._last_scanned = scanned_links
+        self._last_filtered_out = filtered_out
         return refs
 
     def fetch_document(self, ref: DocumentRef) -> RawDocument:
         return self._fetch(ref.source_url)
+
+    def last_scan_counts(self) -> tuple[int, int]:
+        return self._last_scanned, self._last_filtered_out
 
     def extract_metadata(self, raw: RawDocument, ref: DocumentRef) -> ParsedDocument:
         content_type = (raw.content_type or "").lower()
@@ -182,21 +201,76 @@ class HtmlRFMOAdapter(RFMOAdapter):
         lowered = f"{url} {link_text} {context}".lower()
         if url.startswith("mailto:") or url.startswith("javascript:"):
             return False
-        if any(ext in lowered for ext in [".pdf", ".doc", ".docx", ".htm", ".html"]):
-            return True
 
-        category_terms = [
-            "conservation",
+        # Drop obvious non-actionable pages before any expensive parsing.
+        exclude_terms = [
+            "news",
+            "press",
+            "newsletter",
+            "manual",
+            "guide",
+            "brochure",
+            "training",
+            "faq",
+            "photo",
+            "gallery",
+            "video",
+            "event",
+            "workshop",
+            "vacancy",
+            "procurement",
+            "tender",
+            "media",
+            "twitter",
+            "facebook",
+        ]
+        if any(t in lowered for t in exclude_terms):
+            return False
+
+        policy_terms = [
+            "conservation and management measure",
             "management measure",
             "recommendation",
             "resolution",
             "circular",
             "iuu",
             "quota",
+            "allocation",
+            "catch limit",
+            "closure",
+            "closed area",
+            "prohibited",
+            "ban",
             "meeting",
             "decision",
         ]
-        return any(t in lowered for t in category_terms)
+
+        compliance_terms = [
+            "shall",
+            "must",
+            "required",
+            "deadline",
+            "reporting",
+            "obligation",
+            "compliance",
+            "entry into force",
+            "effective",
+            "implementation",
+        ]
+        has_policy_signal = any(t in lowered for t in policy_terms)
+        has_compliance_signal = any(t in lowered for t in compliance_terms)
+        has_policy_identifier = bool(POLICY_ID_RE.search(f"{link_text} {context}"))
+        has_actionable_extension = any(ext in lowered for ext in [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".htm", ".html"])
+
+        # High-signal policy filter:
+        # - explicit policy ID, or
+        # - policy + compliance signal
+        # and ideally a downloadable extension / document-like URL.
+        if has_policy_identifier:
+            return has_actionable_extension or has_policy_signal
+        if has_policy_signal and has_compliance_signal:
+            return has_actionable_extension or "measure/" in lowered or "document/" in lowered
+        return False
 
     def _extract_html_title(self, html_doc: str) -> str | None:
         m = re.search(r"<title[^>]*>(.*?)</title>", html_doc, re.IGNORECASE | re.DOTALL)

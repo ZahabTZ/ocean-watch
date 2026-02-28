@@ -1,0 +1,40 @@
+{
+  "source_url": "https://iotc.org/documents/entry-effect-resolutions-2025-03-and-2025-04-adopted-iotc-its-29th-session",
+  "rfmo": "IOTC",
+  "document_type": "circular_letters",
+  "published_date": "2025-10-22",
+  "discovered_at": "2026-02-28T21:26:09.933386+00:00",
+  "file_hash": "08eebbc8fd3d4a183fe5ed0a547f3b11c83849f0cf83e1866f42142f010f51de",
+  "status": "ingested",
+  "title": "ENTRY INTO EFFECT OF RESOLUTIONS 2025-03 AND 2025-04 ADOPTED BY THE IOTC AT ITS 29TH SESSION | IOTC",
+  "document_number": null,
+  "meeting_reference": null,
+  "rfmo_region": "Indian Ocean",
+  "headers": {
+    "Server": "nginx",
+    "Date": "Sat, 28 Feb 2026 21:26:20 GMT",
+    "Content-Type": "text/html; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "X-Powered-By": "PleskLin",
+    "X-Drupal-Cache": "HIT",
+    "Content-Language": "en",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-Generator": "Drupal 7 (http://drupal.org)",
+    "Link": "</documents/entry-effect-resolutions-2025-03-and-2025-04-adopted-iotc-its-29th-session>; rel=\"canonical\",</node/20631>; rel=\"shortlink\"",
+    "Cache-Control": "public, max-age=300",
+    "Expires": "Sun, 19 Nov 1978 05:00:00 GMT",
+    "Vary": "Cookie,Accept-Encoding",
+    "Etag": "\"1772311597-0\"",
+    "Last-Modified": "Sat, 28 Feb 2026 20:46:37 GMT"
+  },
+  "content_type": "text/html; charset=utf-8",
+  "parser_info": {
+    "parser": "html"
+  },
+  "index_url": "https://iotc.org/documents/circulars",
+  "adapter_metadata": {
+    "queue": "hot"
+  }
+}
