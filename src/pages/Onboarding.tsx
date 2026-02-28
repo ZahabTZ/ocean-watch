@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { fetchWcpfcVesselsByCompanyOrRegistration, type GovernmentVesselRecord } from '@/lib/wcpfcRegistry';
 import { DEMO_COMPANY, saveFleetProfile } from '@/data/liveData';
+import { useOnboarding } from '@/hooks/use-onboarding';
 
 const STEPS = [
   { num: 1, label: 'Profile', icon: <User className="h-4 w-4" /> },
@@ -124,6 +125,7 @@ const mapGovernmentGear = (vesselType?: string) => {
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { saveOnboarding } = useOnboarding();
   const [step, setStep] = useState(1);
 
   // Step 1
@@ -309,6 +311,35 @@ const Onboarding = () => {
       })),
     };
     saveFleetProfile(profile);
+    saveOnboarding({
+      role,
+      orgName: profile.companyName,
+      region,
+      vessels: filledVessels.map(v => ({
+        name: v.name.trim(),
+        zone: v.zone,
+        species: v.species,
+        gear: v.gear,
+        trackingTag: v.trackingTag,
+        source: v.source,
+        registrationNumber: v.registrationNumber,
+        ownerName: v.ownerName,
+        imo: v.imo,
+        ircs: v.ircs,
+        win: v.win,
+        sourceUrl: v.sourceUrl,
+      })),
+      enabledSources,
+      rssFeeds: [],
+      twitterHandles: [],
+      govUrls: [],
+      enabledGlobalSources,
+      enabledAiSources,
+      alertCategories,
+      channels,
+      urgency,
+      completedAt: new Date().toISOString(),
+    });
     navigate('/');
   };
 
