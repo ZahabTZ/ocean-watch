@@ -514,18 +514,33 @@ const Onboarding = () => {
                             </div>
                             <div className="flex-1 min-w-0 space-y-1.5">
                               <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs font-semibold text-foreground truncate">{result.name}</p>
+                                <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                                  <Anchor className="h-3 w-3 text-primary/70 flex-shrink-0" />
+                                  {result.name}
+                                </p>
                                 <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">VID {result.vid}</span>
                               </div>
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                Owner: {result.ownerName || '—'}
+                              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                <Building2 className="h-2.5 w-2.5 flex-shrink-0" /> {result.ownerName || '—'}
                               </p>
                               <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">Reg {result.registrationNumber || '—'}</span>
-                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">IMO {result.imo || '—'}</span>
-                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">IRCS {result.ircs || '—'}</span>
-                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">WIN {result.win || '—'}</span>
-                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">Type {result.vesselType || '—'}</span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
+                                  <FileText className="h-2.5 w-2.5 text-primary/60" /> {result.registrationNumber || '—'}
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
+                                  <Globe2 className="h-2.5 w-2.5 text-primary/60" /> {result.imo || '—'}
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
+                                  <Radio className="h-2.5 w-2.5 text-primary/60" /> {result.ircs || '—'}
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">
+                                  <Shield className="h-2.5 w-2.5 text-primary/60" /> {result.win || '—'}
+                                </span>
+                                {result.vesselType && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary">
+                                    <Ship className="h-2.5 w-2.5" /> {result.vesselType}
+                                  </span>
+                                )}
                               </div>
                               {result.sourceUrl && (
                                 <span className="inline-flex items-center gap-1 text-[10px] text-primary">
