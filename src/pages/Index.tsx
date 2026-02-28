@@ -5,12 +5,13 @@ import { DashboardView } from '@/components/DashboardView';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
 import { CommPanel } from '@/components/CommPanel';
-import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, User, Settings, LogOut } from 'lucide-react';
+import { CommunityPanel } from '@/components/CommunityPanel';
+import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, Users, User, Settings, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community'>('map');
 
   const actionCount = MOCK_ALERTS.filter((a) => a.status === 'action_required').length;
 
@@ -34,9 +35,10 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center rounded-md border border-border bg-secondary/30 p-0.5">
-              {(['map', 'dashboard', 'chat', 'comm'] as const).map(v => {
-                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio };
-                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm' };
+              {(['map', 'dashboard', 'chat', 'comm', 'community'] as const).map(v => {
+                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio, community: Users };
+                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm', community: 'Community' };
+                
                 const Icon = icons[v];
                 return (
                   <button
@@ -97,6 +99,10 @@ const Index = () => {
       ) : view === 'comm' ? (
         <div className="flex-1 overflow-hidden">
           <CommPanel />
+        </div>
+      ) : view === 'community' ? (
+        <div className="flex-1 overflow-hidden">
+          <CommunityPanel />
         </div>
       ) : (
         <DashboardView onSwitchToMap={() => setView('map')} />
