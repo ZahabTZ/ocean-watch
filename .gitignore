@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python (subpackage)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+
+# RFMO ingestion package runtime data
+packages/rfmo-ingestion-pipeline/*.db
+packages/rfmo-ingestion-pipeline/*.db-shm
+packages/rfmo-ingestion-pipeline/*.db-wal
