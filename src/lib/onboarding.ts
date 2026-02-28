@@ -4,11 +4,13 @@ export interface OnboardingData {
   role: string;
   orgName: string;
   region: string;
-  vessels: { name: string; zone: string; species: string; gear: string }[];
+  vessels: { name: string; zone: string; species: string; gear: string; trackingTag?: string }[];
   enabledSources: string[];
   rssFeeds: string[];
   twitterHandles: string[];
   govUrls: string[];
+  enabledGlobalSources: string[];
+  enabledAiSources: string[];
   alertCategories: string[];
   channels: { email: boolean; sms: boolean; whatsapp: boolean; push: boolean };
   urgency: string;

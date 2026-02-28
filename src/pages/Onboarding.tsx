@@ -6,7 +6,7 @@ import {
   Anchor, ChevronRight, ChevronLeft, Check, Ship, Globe2, Rss, Twitter, Mail,
   FileText, Plus, X, Wifi, Database, Bell, Smartphone, MessageSquare, Zap,
   MapPin, Fish, User, Building2, ArrowRight, Sparkles, Upload, Clock,
-  CalendarDays, AlertTriangle,
+  CalendarDays, AlertTriangle, Radio, Search, Loader2, Link2, Shield,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
@@ -61,6 +61,46 @@ const SOURCE_TYPES = [
   { id: 'upload', label: 'Custom Upload', icon: <Upload className="h-5 w-5" />, desc: 'Drop a PDF anytime for AI extraction' },
 ];
 
+const GLOBAL_DATA_SOURCES = [
+  { id: 'gfw', label: 'Global Fishing Watch', desc: 'Satellite-based vessel tracking & fishing activity', icon: '🛰️' },
+  { id: 'fao', label: 'FAO FishStatJ', desc: 'Global fisheries production & trade statistics', icon: '🐟' },
+  { id: 'ais', label: 'AIS Marine Traffic', desc: 'Automatic Identification System vessel positions', icon: '📡' },
+  { id: 'iuu', label: 'IUU Vessel Blacklist', desc: 'Combined RFMO IUU vessel lists & sanctions', icon: '🚫' },
+  { id: 'noaa', label: 'NOAA Fisheries Data', desc: 'US federal fisheries science & management data', icon: '🌊' },
+];
+
+const AI_RECOMMENDED_SOURCES: Record<string, { id: string; label: string; desc: string; reason: string; icon: string }[]> = {
+  pacific: [
+    { id: 'spc', label: 'SPC / Pacific Community', desc: 'Pacific Island fisheries observer & catch data', reason: 'Covers your Pacific operating region', icon: '🏝️' },
+    { id: 'ffa', label: 'FFA Vessel Register', desc: 'Forum Fisheries Agency vessel licensing database', reason: 'Required for WCPO compliance', icon: '📋' },
+    { id: 'pna', label: 'PNA VDS Scheme', desc: 'Vessel Day Scheme effort allocation data', reason: 'Critical for purse seine fleet ops', icon: '📊' },
+  ],
+  atlantic: [
+    { id: 'euf', label: 'EU Fleet Register', desc: 'European fishing fleet capacity & licensing', reason: 'Covers Atlantic EU-flagged vessels', icon: '🇪🇺' },
+    { id: 'nmfs', label: 'NMFS Permits Database', desc: 'US Atlantic & Gulf fishing permits', reason: 'Required for NA-1/NA-2 zone ops', icon: '📜' },
+  ],
+  indian: [
+    { id: 'iotcdb', label: 'IOTC Catch Database', desc: 'Indian Ocean catch & effort statistics', reason: 'Direct feed from your primary RFMO', icon: '🎣' },
+    { id: 'iioe', label: 'IIOE Oceanographic Data', desc: 'Indian Ocean environmental & species data', reason: 'Correlates environmental shifts to catch', icon: '🌡️' },
+  ],
+  southern: [
+    { id: 'ccamlrdb', label: 'CCAMLR Catch Limits', desc: 'Antarctic catch documentation scheme data', reason: 'Mandatory for Southern Ocean ops', icon: '🧊' },
+    { id: 'scar', label: 'SCAR Biodiversity DB', desc: 'Antarctic ecosystem & biodiversity monitoring', reason: 'Required for precautionary approach', icon: '🐧' },
+  ],
+  multi: [
+    { id: 'spc', label: 'SPC / Pacific Community', desc: 'Pacific Island fisheries observer & catch data', reason: 'Covers Pacific operations', icon: '🏝️' },
+    { id: 'euf', label: 'EU Fleet Register', desc: 'European fishing fleet capacity & licensing', reason: 'Covers Atlantic operations', icon: '🇪🇺' },
+    { id: 'iotcdb', label: 'IOTC Catch Database', desc: 'Indian Ocean catch & effort statistics', reason: 'Covers Indian Ocean operations', icon: '🎣' },
+  ],
+};
+
+const MOCK_REGISTRY_VESSELS = [
+  { id: 'REG-001', name: 'FV Southern Cross', imo: '9234567', flag: '🇳🇿', type: 'Longline', registered: '2019' },
+  { id: 'REG-002', name: 'MV Pacific Star', imo: '9345678', flag: '🇫🇯', type: 'Purse Seine', registered: '2021' },
+  { id: 'REG-003', name: 'FV Ocean Venture', imo: '9456789', flag: '🇦🇺', type: 'Trawl', registered: '2018' },
+  { id: 'REG-004', name: 'RV Coral Explorer', imo: '9567890', flag: '🇵🇬', type: 'Pole & Line', registered: '2022' },
+];
+
 const ALERT_CATEGORIES = [
   { id: 'quota', label: 'Quota Changes', icon: '📊' },
   { id: 'closure', label: 'Area Closures', icon: '🚫' },
@@ -75,6 +115,14 @@ const URGENCY_OPTIONS = [
   { id: 'weekly', label: 'Weekly Summary', desc: 'End-of-week compliance report', icon: <Clock className="h-4 w-4" /> },
 ];
 
+interface VesselEntry {
+  name: string;
+  zone: string;
+  species: string;
+  gear: string;
+  trackingTag: string;
+}
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const { data: savedData, saveOnboarding } = useOnboarding();
@@ -86,9 +134,16 @@ const Onboarding = () => {
   const [region, setRegion] = useState(savedData?.region ?? '');
 
   // Step 2
-  const [vessels, setVessels] = useState<{ name: string; zone: string; species: string; gear: string }[]>(
-    savedData?.vessels?.length ? savedData.vessels : [{ name: '', zone: '', species: '', gear: '' }],
+  const [vessels, setVessels] = useState<VesselEntry[]>(
+    savedData?.vessels?.length
+      ? savedData.vessels.map(v => ({ ...v, trackingTag: (v as any).trackingTag ?? '' }))
+      : [{ name: '', zone: '', species: '', gear: '', trackingTag: '' }],
   );
+  const [registryCompanyId, setRegistryCompanyId] = useState('');
+  const [registrySearching, setRegistrySearching] = useState(false);
+  const [registryResults, setRegistryResults] = useState<typeof MOCK_REGISTRY_VESSELS | null>(null);
+  const [selectedRegistryVessels, setSelectedRegistryVessels] = useState<Set<string>>(new Set());
+  const [registrySubscribed, setRegistrySubscribed] = useState(false);
 
   // Step 3
   const [enabledSources, setEnabledSources] = useState<string[]>(savedData?.enabledSources ?? ['rfmo']);
@@ -98,6 +153,10 @@ const Onboarding = () => {
   const [twitterInput, setTwitterInput] = useState('');
   const [govUrls, setGovUrls] = useState<string[]>(savedData?.govUrls ?? []);
   const [govInput, setGovInput] = useState('');
+  const [enabledGlobalSources, setEnabledGlobalSources] = useState<string[]>(
+    savedData?.enabledGlobalSources ?? GLOBAL_DATA_SOURCES.map(s => s.id)
+  );
+  const [enabledAiSources, setEnabledAiSources] = useState<string[]>(savedData?.enabledAiSources ?? []);
 
   // Step 4
   const [alertCategories, setAlertCategories] = useState<string[]>(savedData?.alertCategories ?? ['quota', 'closure', 'reporting', 'species', 'penalties']);
@@ -108,22 +167,69 @@ const Onboarding = () => {
   const selectedRegion = REGIONS.find(r => r.id === region);
   const recommendedRfmos = selectedRegion?.rfmos || [];
   const availableZones = recommendedRfmos.flatMap(r => ZONE_MAP[r] || []);
+  const aiSources = region ? (AI_RECOMMENDED_SOURCES[region] || []) : [];
+
+  // Initialize AI sources when region changes
+  const [lastRegion, setLastRegion] = useState('');
+  if (region && region !== lastRegion) {
+    setLastRegion(region);
+    setEnabledAiSources((AI_RECOMMENDED_SOURCES[region] || []).map(s => s.id));
+  }
 
   const next = () => step < 5 && setStep(step + 1);
   const prev = () => step > 1 && setStep(step - 1);
 
-  const addVessel = () => setVessels(p => [...p, { name: '', zone: '', species: '', gear: '' }]);
+  const addVessel = () => setVessels(p => [...p, { name: '', zone: '', species: '', gear: '', trackingTag: '' }]);
   const removeVessel = (i: number) => setVessels(p => p.filter((_, idx) => idx !== i));
   const updateVessel = (i: number, field: string, value: string) =>
     setVessels(p => p.map((v, idx) => idx === i ? { ...v, [field]: value } : v));
 
   const toggleSource = (id: string) => setEnabledSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const toggleCategory = (id: string) => setAlertCategories(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleGlobalSource = (id: string) => setEnabledGlobalSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAiSource = (id: string) => setEnabledAiSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
   const addItem = (value: string, setter: React.Dispatch<React.SetStateAction<string[]>>, inputSetter: React.Dispatch<React.SetStateAction<string>>) => {
     if (value.trim()) { setter(p => [...p, value.trim()]); inputSetter(''); }
   };
   const removeItem = (i: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => setter(p => p.filter((_, idx) => idx !== i));
+
+  const searchRegistry = () => {
+    if (!registryCompanyId.trim()) return;
+    setRegistrySearching(true);
+    setRegistryResults(null);
+    setTimeout(() => {
+      setRegistryResults(MOCK_REGISTRY_VESSELS);
+      setRegistrySearching(false);
+    }, 1500);
+  };
+
+  const toggleRegistryVessel = (id: string) => {
+    setSelectedRegistryVessels(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const addRegistryVessels = () => {
+    if (!registryResults) return;
+    const toAdd = registryResults.filter(v => selectedRegistryVessels.has(v.id));
+    const newVessels: VesselEntry[] = toAdd.map(v => ({
+      name: v.name,
+      zone: '',
+      species: '',
+      gear: v.type,
+      trackingTag: '',
+    }));
+    setVessels(p => {
+      const cleaned = p.filter(v => v.name.trim());
+      return cleaned.length > 0 ? [...cleaned, ...newVessels] : newVessels;
+    });
+    setSelectedRegistryVessels(new Set());
+    setRegistryResults(null);
+    setRegistryCompanyId('');
+  };
 
   const filledVessels = vessels.filter(v => v.name.trim());
 
@@ -249,7 +355,7 @@ const Onboarding = () => {
                   <Ship className="h-5 w-5 text-primary" /> Your Fleet
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Tag each vessel with zone, species, and gear type. We'll use this to filter everything that matters to you.
+                  Tag each vessel with zone, species, gear type, and tracking tag. We'll use this to filter everything that matters to you.
                 </p>
               </div>
 
@@ -260,11 +366,128 @@ const Onboarding = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-medium text-foreground">Have a vessel list?</p>
-                  <p className="text-[10px] text-muted-foreground">Upload a CSV with columns: name, zone, species, gear type</p>
+                  <p className="text-[10px] text-muted-foreground">Upload a CSV with columns: name, zone, species, gear type, tracking tag</p>
                 </div>
                 <button className="px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
                   Upload CSV
                 </button>
+              </div>
+
+              {/* Registry Lookup */}
+              <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Shield className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">National Registry Lookup</p>
+                    <p className="text-[10px] text-muted-foreground">Find registered vessels by your company ID</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={registryCompanyId}
+                    onChange={e => setRegistryCompanyId(e.target.value)}
+                    placeholder="Enter Company / Operator ID (e.g. CID-48291)"
+                    className="flex-1 px-3 py-2 rounded-md border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
+                    onKeyDown={e => e.key === 'Enter' && searchRegistry()}
+                  />
+                  <button
+                    onClick={searchRegistry}
+                    disabled={registrySearching || !registryCompanyId.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {registrySearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                    Search
+                  </button>
+                </div>
+
+                {registrySearching && (
+                  <div className="flex items-center gap-2 py-3 justify-center text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-xs font-mono">Querying national registries…</span>
+                  </div>
+                )}
+
+                {registryResults && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-mono uppercase text-muted-foreground">
+                        {registryResults.length} vessels found for "{registryCompanyId}"
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (selectedRegistryVessels.size === registryResults.length) {
+                            setSelectedRegistryVessels(new Set());
+                          } else {
+                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.id)));
+                          }
+                        }}
+                        className="text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        {selectedRegistryVessels.size === registryResults.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+                    {registryResults.map(rv => {
+                      const selected = selectedRegistryVessels.has(rv.id);
+                      return (
+                        <button
+                          key={rv.id}
+                          onClick={() => toggleRegistryVessel(rv.id)}
+                          className={`w-full flex items-center gap-3 p-2.5 rounded-md border text-left transition-all ${
+                            selected ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary/10 hover:bg-secondary/20'
+                          }`}
+                        >
+                          <div className={`h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                          }`}>
+                            {selected && <Check className="h-3 w-3" />}
+                          </div>
+                          <span className="text-sm">{rv.flag}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate">{rv.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">IMO {rv.imo} · {rv.type} · Reg. {rv.registered}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {selectedRegistryVessels.size > 0 && (
+                      <button
+                        onClick={addRegistryVessels}
+                        className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add {selectedRegistryVessels.size} vessel{selectedRegistryVessels.size > 1 ? 's' : ''} to fleet
+                      </button>
+                    )}
+
+                    {/* Subscribe to registry */}
+                    <div className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
+                      registrySubscribed ? 'border-success/40 bg-success/5' : 'border-border bg-secondary/10'
+                    }`}>
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        registrySubscribed ? 'bg-success/15 text-success' : 'bg-secondary/30 text-muted-foreground'
+                      }`}>
+                        <Bell className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground">Subscribe to this registry</p>
+                        <p className="text-[10px] text-muted-foreground">Auto-add new vessels registered under this company ID</p>
+                      </div>
+                      <Switch
+                        checked={registrySubscribed}
+                        onCheckedChange={setRegistrySubscribed}
+                        className="data-[state=checked]:bg-success flex-shrink-0"
+                      />
+                    </div>
+                    {registrySubscribed && (
+                      <p className="text-[10px] text-success/80 flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        You'll be notified when new vessels are added to this registry
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Vessel cards */}
@@ -290,6 +513,18 @@ const Onboarding = () => {
                           <X className="h-3.5 w-3.5" />
                         </button>
                       )}
+                    </div>
+                    {/* Tracking Tag */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-secondary/20 flex-1">
+                        <Radio className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                        <input
+                          value={v.trackingTag}
+                          onChange={e => updateVessel(i, 'trackingTag', e.target.value)}
+                          placeholder="Electronic tracking tag ID (e.g. ELT-2024-08291)"
+                          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <select
@@ -448,6 +683,67 @@ const Onboarding = () => {
                   );
                 })}
               </div>
+
+              {/* ── Suggested Global Data Sources ── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Globe2 className="h-4 w-4 text-primary" />
+                  <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Suggested Global Data Sources</label>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary font-mono">RECOMMENDED</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground -mt-1">Essential data feeds used by all fisheries — enabled by default.</p>
+                {GLOBAL_DATA_SOURCES.map(src => {
+                  const enabled = enabledGlobalSources.includes(src.id);
+                  return (
+                    <div key={src.id} className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
+                      enabled ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
+                    }`}>
+                      <span className="text-lg flex-shrink-0">{src.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">{src.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{src.desc}</p>
+                      </div>
+                      <Switch checked={enabled} onCheckedChange={() => toggleGlobalSource(src.id)} className="data-[state=checked]:bg-primary flex-shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── AI Recommended Data Sources ── */}
+              {aiSources.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-warning" />
+                    <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">AI-Recommended Sources</label>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-warning/15 text-warning font-mono">AI</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground -mt-1">
+                    Based on your region ({selectedRegion?.label}), industry, and organization profile.
+                  </p>
+                  {aiSources.map(src => {
+                    const enabled = enabledAiSources.includes(src.id);
+                    return (
+                      <div key={src.id} className={`rounded-lg border p-3 transition-all ${
+                        enabled ? 'border-warning/30 bg-warning/5' : 'border-border bg-card'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg flex-shrink-0">{src.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">{src.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{src.desc}</p>
+                          </div>
+                          <Switch checked={enabled} onCheckedChange={() => toggleAiSource(src.id)} className="data-[state=checked]:bg-warning flex-shrink-0" />
+                        </div>
+                        <div className="mt-1.5 ml-10">
+                          <p className="text-[10px] text-warning/80 flex items-center gap-1">
+                            <Sparkles className="h-2.5 w-2.5" /> {src.reason}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -546,7 +842,7 @@ const Onboarding = () => {
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
                   <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Sources</p>
-                  <p className="text-2xl font-bold text-primary">{enabledSources.length}</p>
+                  <p className="text-2xl font-bold text-primary">{enabledSources.length + enabledGlobalSources.length + enabledAiSources.length}</p>
                   <p className="text-[10px] text-muted-foreground">active ingestion channels</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
@@ -592,6 +888,8 @@ const Onboarding = () => {
                     rssFeeds,
                     twitterHandles,
                     govUrls,
+                    enabledGlobalSources,
+                    enabledAiSources,
                     alertCategories,
                     channels,
                     urgency,
