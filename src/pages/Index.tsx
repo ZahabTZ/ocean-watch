@@ -46,9 +46,9 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center rounded-md border border-border bg-secondary/30 p-0.5">
-              {(['map', 'dashboard', 'feed', 'chat', 'comm', 'community', 'requests'] as const).map(v => {
-                const icons = { map: Map, dashboard: LayoutDashboard, feed: Activity, chat: MessageSquare, comm: Radio, community: Users, requests: Inbox };
-                const labels = { map: 'Map', dashboard: 'Dashboard', feed: 'Data Feed', chat: 'Chat', comm: 'Comm', community: 'Community', requests: 'Requests' };
+              {(['feed', 'map', 'dashboard', 'chat', 'comm', 'community', 'requests'] as const).map(v => {
+                const icons = { feed: Activity, map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio, community: Users, requests: Inbox };
+                const labels = { feed: 'Data', map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm', community: 'Community', requests: 'Requests' };
                 const hasBadge = v === 'requests' && pendingRequests > 0;
                 const Icon = icons[v];
                 return (
