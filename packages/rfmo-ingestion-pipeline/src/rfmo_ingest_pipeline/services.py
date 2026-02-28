@@ -1,395 +1,310 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import subprocess
+import threading
+import time
+import zipfile
+from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
+from pathlib import Path
+from typing import Any
 
 from rfmo_ingest_pipeline.models import (
-    Alert,
-    ChangeEvent,
-    ChangeType,
-    FleetProfile,
-    ImpactAssessment,
-    MeasureType,
-    NormalizedMeasure,
-    Severity,
-    SourceDocument,
+    ChangeDecision,
+    DocumentRecord,
+    DocumentRef,
+    DocumentVersionRecord,
+    IngestReason,
+    ParsedDocument,
+    ProcessingStatus,
+    RawDocument,
 )
-from rfmo_ingest_pipeline.store import SQLiteStore
-
-DATE_PATTERN = r"(\d{4}-\d{2}-\d{2})"
-SPECIES_TERMS = [
-    "BLUEFIN",
-    "YELLOWFIN",
-    "BIGEYE",
-    "SKIPJACK",
-    "ALBACORE",
-    "SWORDFISH",
-    "SHARK",
-    "TROPICAL TUNA",
-]
-AREA_TERMS = [
-    "INDIAN OCEAN",
-    "ATLANTIC",
-    "PACIFIC",
-    "IOTC AREA",
-]
 
 
-class NormalizationService:
-    def normalize(self, doc: SourceDocument) -> List[NormalizedMeasure]:
-        content = doc.content
-        measures: List[NormalizedMeasure] = []
+@dataclass
+class RetryPolicy:
+    max_attempts: int = 3
+    backoff_seconds: float = 1.0
 
-        quota_pattern = re.compile(
-            rf"quota for ([A-Z_]+) in ([A-Z_]+) changed from (\d+) to (\d+) (tons|kg)(?: effective {DATE_PATTERN})?",
-            re.IGNORECASE,
+
+class FetchService:
+    def __init__(self, retry_policy: RetryPolicy | None = None) -> None:
+        self.retry_policy = retry_policy or RetryPolicy()
+
+    def fetch_with_retries(self, fetch_fn, ref: DocumentRef) -> RawDocument:
+        last_error: Exception | None = None
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            try:
+                return fetch_fn(ref)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                if attempt < self.retry_policy.max_attempts:
+                    time.sleep(self.retry_policy.backoff_seconds * attempt)
+        raise RuntimeError(f"Failed to fetch after retries: {ref.source_url}") from last_error
+
+
+class ParseService:
+    def parse(self, raw: RawDocument, base: ParsedDocument) -> ParsedDocument:
+        content_type = (raw.content_type or "").lower()
+        url_lower = raw.source_url.lower()
+
+        extracted_text = ""
+        snapshot_html: str | None = None
+        parser_info: dict[str, Any] = {}
+
+        if "pdf" in content_type or url_lower.endswith(".pdf"):
+            extracted_text, parser_info = self._parse_pdf(raw.body)
+        elif "html" in content_type or url_lower.endswith((".html", ".htm")):
+            html_text = raw.body.decode("utf-8", errors="replace")
+            extracted_text = self._visible_html_text(html_text)
+            snapshot_html = html_text
+            parser_info = {"parser": "html"}
+        elif "word" in content_type or url_lower.endswith(".docx"):
+            extracted_text = self._parse_docx(raw.body)
+            parser_info = {"parser": "docx"}
+        else:
+            extracted_text = raw.body.decode("utf-8", errors="replace")[:200000]
+            parser_info = {"parser": "bytes_decode"}
+
+        return ParsedDocument(
+            title=base.title,
+            publication_date=base.publication_date,
+            document_category=base.document_category,
+            document_number=base.document_number,
+            meeting_reference=base.meeting_reference,
+            rfmo_region=base.rfmo_region,
+            extracted_text=extracted_text,
+            snapshot_html=snapshot_html,
+            parser_info=parser_info,
         )
-        for match in quota_pattern.finditer(content):
-            effective = self._parse_date(match.group(6))
-            measures.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.quota,
-                    species=match.group(1).upper(),
-                    area=match.group(2).upper(),
-                    old_value=match.group(3),
-                    new_value=match.group(4),
-                    units=match.group(5).lower(),
-                    effective_date=effective,
-                    confidence=0.95,
-                    raw_excerpt=match.group(0),
-                )
-            )
 
-        closure_pattern = re.compile(
-            rf"closure in ([A-Z_]+) from {DATE_PATTERN} to {DATE_PATTERN} for ([A-Z_]+)",
-            re.IGNORECASE,
-        )
-        for match in closure_pattern.finditer(content):
-            measures.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.closure,
-                    area=match.group(1).upper(),
-                    effective_date=self._parse_date(match.group(2)),
-                    due_date=self._parse_date(match.group(3)),
-                    species=match.group(4).upper(),
-                    confidence=0.9,
-                    raw_excerpt=match.group(0),
-                )
-            )
+    def _parse_pdf(self, body: bytes) -> tuple[str, dict[str, Any]]:
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            return "", {"parser": "pdf", "error": "pypdf_not_available", "ocr_attempted": False}
 
-        reporting_pattern = re.compile(
-            rf"reporting deadline(?: set)? to {DATE_PATTERN}",
-            re.IGNORECASE,
-        )
-        for match in reporting_pattern.finditer(content):
-            measures.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.reporting,
-                    due_date=self._parse_date(match.group(1)),
-                    confidence=0.85,
-                    raw_excerpt=match.group(0),
-                )
-            )
+        try:
+            reader = PdfReader(BytesIO(body))
+            pages: list[str] = []
+            for page in reader.pages:
+                text = (page.extract_text() or "").strip()
+                if text:
+                    pages.append(text)
+            merged = re.sub(r"\s+", " ", "\n".join(pages)).strip()
+            if merged:
+                return merged[:2_000_000], {"parser": "pdf", "ocr_attempted": False}
+        except Exception as exc:  # noqa: BLE001
+            return "", {"parser": "pdf", "error": str(exc), "ocr_attempted": False}
 
-        gear_pattern = re.compile(r"gear restriction: ([A-Z_ ]+)", re.IGNORECASE)
-        for match in gear_pattern.finditer(content):
-            measures.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.gear,
-                    new_value=match.group(1).strip().upper(),
-                    confidence=0.8,
-                    raw_excerpt=match.group(0),
-                )
-            )
+        ocr_available = self._command_available("tesseract")
+        return "", {"parser": "pdf", "ocr_attempted": ocr_available, "ocr_used": False}
 
-        if not measures:
-            measures.extend(self._heuristic_measures(doc))
+    def _parse_docx(self, body: bytes) -> str:
+        try:
+            with zipfile.ZipFile(BytesIO(body)) as zf:
+                xml_data = zf.read("word/document.xml").decode("utf-8", errors="replace")
+        except Exception:
+            return ""
 
-        return measures
+        text = re.sub(r"</w:p>", "\n", xml_data)
+        text = re.sub(r"<[^>]+>", " ", text)
+        return re.sub(r"\s+", " ", text).strip()
 
-    def _parse_date(self, value: Optional[str]) -> Optional[datetime]:
-        if not value:
-            return None
-        return datetime.fromisoformat(value)
+    def _visible_html_text(self, html: str) -> str:
+        html = re.sub(r"<script[\s\S]*?</script>", " ", html, flags=re.IGNORECASE)
+        html = re.sub(r"<style[\s\S]*?</style>", " ", html, flags=re.IGNORECASE)
+        html = re.sub(r"<nav[\s\S]*?</nav>", " ", html, flags=re.IGNORECASE)
+        html = re.sub(r"<header[\s\S]*?</header>", " ", html, flags=re.IGNORECASE)
+        html = re.sub(r"<footer[\s\S]*?</footer>", " ", html, flags=re.IGNORECASE)
+        html = re.sub(r"<[^>]+>", " ", html)
+        return re.sub(r"\s+", " ", html).strip()
 
-    def _heuristic_measures(self, doc: SourceDocument) -> List[NormalizedMeasure]:
-        text = f"{doc.title}. {doc.content}"
-        normalized = text.upper()
-        heuristics: List[NormalizedMeasure] = []
-        species = self._extract_species(normalized)
-        area = self._extract_area(normalized)
-        quota_value, quota_units = self._extract_quota_value(text)
-
-        if "CATCH LIMIT" in normalized or "QUOTA" in normalized:
-            heuristics.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.quota,
-                    species=species,
-                    area=area,
-                    new_value=quota_value,
-                    units=quota_units,
-                    confidence=0.6,
-                    raw_excerpt=text[:300],
-                )
-            )
-
-        if "CLOSURE" in normalized or "CLOSED" in normalized:
-            heuristics.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.closure,
-                    species=species,
-                    area=area,
-                    confidence=0.6,
-                    raw_excerpt=text[:300],
-                )
-            )
-
-        if "DEADLINE" in normalized or "REPORTING" in normalized:
-            due = self._extract_any_date(text)
-            heuristics.append(
-                NormalizedMeasure(
-                    document_id=doc.id,
-                    rfmo=doc.rfmo,
-                    measure_type=MeasureType.reporting,
-                    due_date=due,
-                    confidence=0.6 if due else 0.5,
-                    raw_excerpt=text[:300],
-                )
-            )
-
-        return heuristics
-
-    def _extract_any_date(self, text: str) -> Optional[datetime]:
-        iso_match = re.search(r"(20[0-9]{2}-[0-9]{2}-[0-9]{2})", text)
-        if iso_match:
-            return self._parse_date(iso_match.group(1))
-
-        dmy_match = re.search(r"([0-3][0-9]/[0-1][0-9]/20[0-9]{2})", text)
-        if dmy_match:
-            return datetime.strptime(dmy_match.group(1), "%d/%m/%Y")
-        return None
-
-    def _extract_species(self, normalized_text: str) -> Optional[str]:
-        for term in SPECIES_TERMS:
-            if term in normalized_text:
-                return term.replace(" ", "_")
-        return None
-
-    def _extract_area(self, normalized_text: str) -> Optional[str]:
-        for term in AREA_TERMS:
-            if term in normalized_text:
-                return term.replace(" ", "_")
-        return None
-
-    def _extract_quota_value(self, text: str) -> tuple[Optional[str], Optional[str]]:
-        patterns = [
-            r"(?:quota|catch limits?|allocated catch limits?)[^\d]{0,80}(\d{1,3}(?:[,\s]\d{3})*(?:\.\d+)?)\s*(tons?|t|kg)",
-            r"(\d{1,3}(?:[,\s]\d{3})*(?:\.\d+)?)\s*(tons?|t|kg)[^\.]{0,80}(?:quota|catch limits?)",
-        ]
-        lowered = text.lower()
-        for pattern in patterns:
-            match = re.search(pattern, lowered, flags=re.IGNORECASE)
-            if match:
-                value = re.sub(r"[,\s]", "", match.group(1))
-                units = match.group(2).lower()
-                return value, units
-        return None, None
+    def _command_available(self, command: str) -> bool:
+        try:
+            subprocess.run([command, "--version"], capture_output=True, check=False)
+            return True
+        except FileNotFoundError:
+            return False
 
 
 class ChangeDetectionService:
-    def detect_change(
-        self, store: SQLiteStore, doc: SourceDocument, measure: NormalizedMeasure
-    ) -> ChangeEvent:
-        prior = store.get_latest_for_measure(measure)
-        if prior is None:
-            change_type = ChangeType.new
-            summary = self._summary_new(measure)
-        elif prior.new_value != measure.new_value or prior.due_date != measure.due_date:
-            change_type = ChangeType.amendment
-            summary = self._summary_amendment(prior, measure)
-        else:
-            change_type = ChangeType.clarification
-            summary = f"{measure.measure_type.value} reiterated with no numeric change"
-
-        return ChangeEvent(
-            rfmo=doc.rfmo,
-            measure_id=measure.id,
-            change_type=change_type,
-            summary=summary,
-            published_at=doc.published_at,
-        )
-
-    def _summary_new(self, measure: NormalizedMeasure) -> str:
-        if measure.measure_type == MeasureType.quota:
-            target = self._target_label(measure)
-            if measure.new_value:
-                return (
-                    f"New quota for {target}: "
-                    f"{measure.old_value or 'unspecified'} -> {measure.new_value} {measure.units or ''}".strip()
-                )
-            return (
-                f"New quota/catch-limit notice for {target}. "
-                f"Details: {self._short_excerpt(measure.raw_excerpt)}"
+    def evaluate(
+        self,
+        document: DocumentRecord,
+        latest_version: DocumentVersionRecord | None,
+        file_hash: str,
+        metadata_hash: str,
+        content_hash: str,
+        etag: str | None,
+        last_modified: str | None,
+    ) -> ChangeDecision:
+        if latest_version is None:
+            return ChangeDecision(
+                should_ingest=True,
+                reasons=[IngestReason.new_url],
+                next_version_number=1,
             )
-        if measure.measure_type == MeasureType.closure:
-            return f"New closure notice for {self._target_label(measure)}"
-        if measure.measure_type == MeasureType.reporting:
-            if measure.due_date:
-                return f"New reporting deadline: {measure.due_date.date()}"
-            return f"New reporting requirement. Details: {self._short_excerpt(measure.raw_excerpt)}"
-        return "New gear restriction"
 
-    def _summary_amendment(
-        self, prior: NormalizedMeasure, current: NormalizedMeasure
-    ) -> str:
-        if current.measure_type == MeasureType.quota:
-            target = self._target_label(current)
-            if prior.new_value or current.new_value:
-                return (
-                    f"Quota amended for {target}: "
-                    f"{prior.new_value or 'unspecified'} -> {current.new_value or 'unspecified'} {current.units or ''}"
-                ).strip()
-            return f"Quota/catch-limit guidance updated for {target}"
-        return f"{current.measure_type.value} amended"
+        reasons: list[IngestReason] = []
+        if latest_version.file_hash != file_hash:
+            reasons.append(IngestReason.file_hash_changed)
+        if latest_version.content_hash != content_hash:
+            reasons.append(IngestReason.page_content_changed)
+        if latest_version.metadata_hash != metadata_hash:
+            reasons.append(IngestReason.metadata_changed)
 
-    def _target_label(self, measure: NormalizedMeasure) -> str:
-        if measure.species and measure.area:
-            return f"{measure.species} in {measure.area}"
-        if measure.species:
-            return measure.species
-        if measure.area:
-            return measure.area
-        return "relevant fisheries"
+        header_changed = (
+            (etag and latest_version.etag and etag != latest_version.etag)
+            or (last_modified and latest_version.last_modified and last_modified != latest_version.last_modified)
+        )
+        if header_changed and not reasons:
+            reasons.append(IngestReason.metadata_changed)
 
-    def _short_excerpt(self, text: str) -> str:
-        compact = re.sub(r"\s+", " ", text or "").strip()
-        return compact[:120] + ("..." if len(compact) > 120 else "")
-
-
-class ImpactService:
-    def assess(self, profile: FleetProfile, measure: NormalizedMeasure, event: ChangeEvent) -> ImpactAssessment:
-        matches_rfmo = not profile.rfmos or measure.rfmo in profile.rfmos
-        matches_species = not profile.species or (measure.species in profile.species)
-        matches_area = not profile.areas or (measure.area in profile.areas)
-        impacted = matches_rfmo and matches_species and matches_area
-
-        reasons = []
-        if matches_rfmo:
-            reasons.append("rfmo")
-        if matches_species:
-            reasons.append("species")
-        if matches_area:
-            reasons.append("area")
-
-        reason = "Matched " + ", ".join(reasons) if impacted else "No profile match"
-        return ImpactAssessment(
-            org_id=profile.org_id,
-            fleet_profile_id=profile.id,
-            change_event_id=event.id,
-            impacted=impacted,
-            reason=reason,
+        should_ingest = bool(reasons)
+        return ChangeDecision(
+            should_ingest=should_ingest,
+            reasons=reasons,
+            next_version_number=latest_version.version_number + 1 if should_ingest else latest_version.version_number,
         )
 
 
-class AlertService:
-    def generate(
+class ArtifactStorage:
+    def __init__(self, root_dir: str = "./rfmo") -> None:
+        self.root = Path(root_dir)
+        self.root.mkdir(parents=True, exist_ok=True)
+
+    def persist(
         self,
-        profile: FleetProfile,
-        doc: SourceDocument,
-        measure: NormalizedMeasure,
-        event: ChangeEvent,
-    ) -> Alert:
-        severity = self._severity(measure, event)
-        action = self._action_required(measure)
-        target = self._target_label(measure)
-        return Alert(
-            org_id=profile.org_id,
-            change_event_id=event.id,
-            severity=severity,
-            title=f"{doc.rfmo} {measure.measure_type.value} update: {target}",
-            what_changed=event.summary,
-            action_required=action,
-            due_date=measure.due_date or measure.effective_date,
-            source_document_id=doc.id,
-        )
+        document: DocumentRecord,
+        version_number: int,
+        raw: RawDocument,
+        parsed: ParsedDocument,
+        metadata: dict[str, Any],
+    ) -> tuple[str, str, str | None, str, int]:
+        year = (parsed.publication_date.year if parsed.publication_date else datetime.now().year)
+        doc_root = self.root / document.rfmo.lower() / str(year) / document.id / f"v{version_number}"
+        doc_root.mkdir(parents=True, exist_ok=True)
 
-    def _severity(self, measure: NormalizedMeasure, event: ChangeEvent) -> Severity:
-        if measure.measure_type in (MeasureType.quota, MeasureType.closure):
-            return Severity.high
-        if event.change_type == ChangeType.amendment:
-            return Severity.medium
-        return Severity.low
+        raw_ext = self._guess_extension(raw)
+        raw_path = doc_root / f"raw{raw_ext}"
+        extracted_path = doc_root / "extracted.txt"
+        metadata_path = doc_root / "metadata.json"
+        snapshot_path = doc_root / "snapshot.html"
 
-    def _action_required(self, measure: NormalizedMeasure) -> str:
-        target = self._target_label(measure)
-        if measure.measure_type == MeasureType.quota:
-            return f"Review updated quota/catch-limit guidance for {target}; adjust national allocation and notify impacted vessels."
-        if measure.measure_type == MeasureType.closure:
-            return f"Issue closure notice for {target} and update permit conditions."
-        if measure.measure_type == MeasureType.reporting:
-            return "Review reporting obligations, assign owner, and submit required reporting by deadline."
-        return "Review gear restriction and update compliance guidance."
+        raw_path.write_bytes(raw.body)
+        extracted_path.write_text(parsed.extracted_text or "", encoding="utf-8")
+        metadata_path.write_text(json.dumps(metadata, ensure_ascii=True, indent=2), encoding="utf-8")
 
-    def _target_label(self, measure: NormalizedMeasure) -> str:
-        if measure.species and measure.area:
-            return f"{measure.species} in {measure.area}"
-        if measure.species:
-            return measure.species
-        if measure.area:
-            return measure.area
-        return "relevant fisheries"
+        snapshot_value: str | None = None
+        if parsed.snapshot_html:
+            snapshot_path.write_text(parsed.snapshot_html, encoding="utf-8")
+            snapshot_value = str(snapshot_path)
+
+        bytes_written = raw_path.stat().st_size + extracted_path.stat().st_size + metadata_path.stat().st_size
+        if snapshot_value:
+            bytes_written += snapshot_path.stat().st_size
+
+        return str(raw_path), str(extracted_path), snapshot_value, str(metadata_path), bytes_written
+
+    def _guess_extension(self, raw: RawDocument) -> str:
+        ctype = (raw.content_type or "").lower()
+        if "pdf" in ctype:
+            return ".pdf"
+        if "html" in ctype:
+            return ".html"
+        if "word" in ctype or raw.source_url.lower().endswith(".docx"):
+            return ".docx"
+        if raw.source_url.lower().endswith(".pdf"):
+            return ".pdf"
+        if raw.source_url.lower().endswith(".html"):
+            return ".html"
+        if raw.source_url.lower().endswith(".docx"):
+            return ".docx"
+        return ".bin"
 
 
-class PipelineService:
-    def __init__(
-        self,
-        store: SQLiteStore,
-        normalizer: NormalizationService,
-        change_detector: ChangeDetectionService,
-        impact_service: ImpactService,
-        alert_service: AlertService,
-    ) -> None:
-        self.store = store
-        self.normalizer = normalizer
-        self.change_detector = change_detector
-        self.impact_service = impact_service
-        self.alert_service = alert_service
+class MetricsRegistry:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._values: dict[str, float] = {
+            "rfmo_documents_discovered_total": 0.0,
+            "rfmo_documents_fetched_total": 0.0,
+            "rfmo_documents_ingested_total": 0.0,
+            "rfmo_documents_skipped_total": 0.0,
+            "rfmo_failures_total": 0.0,
+            "rfmo_parse_failures_total": 0.0,
+            "rfmo_storage_bytes_total": 0.0,
+            "rfmo_processing_seconds_total": 0.0,
+        }
 
-    def ingest(self, doc: SourceDocument) -> tuple[List[NormalizedMeasure], List[ChangeEvent], List[Alert]]:
-        if self.store.is_duplicate_document(doc):
-            return [], [], []
+    def add(self, key: str, value: float) -> None:
+        with self._lock:
+            self._values[key] = self._values.get(key, 0.0) + value
 
-        self.store.add_document(doc)
-        measures = self.normalizer.normalize(doc)
-        change_events: List[ChangeEvent] = []
-        alerts: List[Alert] = []
+    def set(self, key: str, value: float) -> None:
+        with self._lock:
+            self._values[key] = value
 
-        for measure in measures:
-            self.store.add_measure(measure)
-            event = self.change_detector.detect_change(self.store, doc, measure)
-            self.store.add_change_event(event)
-            change_events.append(event)
+    def snapshot(self) -> dict[str, float]:
+        with self._lock:
+            return dict(self._values)
 
-            for profile in self.store.list_fleet_profiles():
-                assessment = self.impact_service.assess(profile, measure, event)
-                if assessment.impacted:
-                    alert = self.alert_service.generate(profile, doc, measure, event)
-                    self.store.add_alert(alert)
-                    alerts.append(alert)
+    def as_prometheus(self) -> str:
+        values = self.snapshot()
+        lines = [f"{k} {v}" for k, v in sorted(values.items())]
+        return "\n".join(lines) + "\n"
 
-            self.store.set_latest_for_measure(measure)
 
-        return measures, change_events, alerts
+class MetricsServer:
+    def __init__(self, registry: MetricsRegistry, host: str = "0.0.0.0", port: int = 9108) -> None:
+        self.registry = registry
+        self.host = host
+        self.port = port
+        self._server: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._server is not None:
+            return
+
+        registry = self.registry
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                if self.path != "/metrics":
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                payload = registry.as_prometheus().encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, format, *args):
+                return
+
+        self._server = ThreadingHTTPServer((self.host, self.port), Handler)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        if self._server is None:
+            return
+        self._server.shutdown()
+        self._server.server_close()
+        self._server = None
+        self._thread = None
+
+
+def sha256_hex(data: bytes | str) -> str:
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    return hashlib.sha256(data).hexdigest()

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
+import { fetchWcpfcVesselsByCompanyOrRegistration, type GovernmentVesselRecord } from '@/lib/wcpfcRegistry';
 
 const STEPS = [
   { num: 1, label: 'Profile', icon: <User className="h-4 w-4" /> },
@@ -115,13 +116,30 @@ const URGENCY_OPTIONS = [
   { id: 'weekly', label: 'Weekly Summary', desc: 'End-of-week compliance report', icon: <Clock className="h-4 w-4" /> },
 ];
 
-interface VesselEntry {
+type OnboardingVessel = {
   name: string;
   zone: string;
   species: string;
   gear: string;
   trackingTag: string;
-}
+  source?: 'manual' | 'government';
+  registrationNumber?: string;
+  ownerName?: string;
+  imo?: string;
+  ircs?: string;
+  win?: string;
+  sourceUrl?: string;
+};
+
+const mapGovernmentGear = (vesselType?: string) => {
+  const normalized = vesselType?.toLowerCase() || '';
+  if (normalized.includes('purse')) return 'Purse Seine';
+  if (normalized.includes('longline') || normalized.includes('liner')) return 'Longline';
+  if (normalized.includes('trawl')) return 'Trawl';
+  if (normalized.includes('pole') || normalized.includes('line')) return 'Pole & Line';
+  if (normalized.includes('gillnet')) return 'Gillnet';
+  return '';
+};
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -131,12 +149,16 @@ const Onboarding = () => {
   // Step 1
   const [role, setRole] = useState(savedData?.role ?? '');
   const [orgName, setOrgName] = useState(savedData?.orgName ?? '');
+  const [registryQuery, setRegistryQuery] = useState('');
+  const [registryLoading, setRegistryLoading] = useState(false);
+  const [registryError, setRegistryError] = useState('');
+  const [registryLastImported, setRegistryLastImported] = useState(0);
   const [region, setRegion] = useState(savedData?.region ?? '');
 
   // Step 2
-  const [vessels, setVessels] = useState<VesselEntry[]>(
+  const [vessels, setVessels] = useState<OnboardingVessel[]>(
     savedData?.vessels?.length
-      ? savedData.vessels.map(v => ({ ...v, trackingTag: (v as any).trackingTag ?? '' }))
+      ? savedData.vessels.map(v => ({ ...v, trackingTag: v.trackingTag ?? '' }))
       : [{ name: '', zone: '', species: '', gear: '', trackingTag: '' }],
   );
   const [registryCompanyId, setRegistryCompanyId] = useState('');
@@ -193,6 +215,53 @@ const Onboarding = () => {
     if (value.trim()) { setter(p => [...p, value.trim()]); inputSetter(''); }
   };
   const removeItem = (i: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => setter(p => p.filter((_, idx) => idx !== i));
+  const loadGovernmentVessels = async () => {
+    const query = registryQuery.trim();
+    if (!query) {
+      setRegistryError('Enter company name or registration ID.');
+      return;
+    }
+
+    setRegistryLoading(true);
+    setRegistryError('');
+
+    try {
+      const results = await fetchWcpfcVesselsByCompanyOrRegistration(query);
+      if (!results.length) {
+        setRegistryError('No registered vessels found for that company/registration ID.');
+        setRegistryLastImported(0);
+        return;
+      }
+
+      const importedVessels: OnboardingVessel[] = results.map((record: GovernmentVesselRecord) => ({
+        name: record.name,
+        zone: '',
+        species: '',
+        gear: mapGovernmentGear(record.vesselType),
+        source: 'government',
+        registrationNumber: record.registrationNumber,
+        ownerName: record.ownerName,
+        imo: record.imo,
+        ircs: record.ircs,
+        win: record.win,
+        sourceUrl: record.sourceUrl,
+      }));
+
+      setVessels(importedVessels);
+      setRegistryLastImported(importedVessels.length);
+      setStep(2);
+
+      if (!orgName.trim()) {
+        const owner = results.find(r => r.ownerName)?.ownerName;
+        if (owner) setOrgName(owner);
+      }
+    } catch {
+      setRegistryError('Government registry lookup failed. Please try again in a minute.');
+      setRegistryLastImported(0);
+    } finally {
+      setRegistryLoading(false);
+    }
+  };
 
   const searchRegistry = () => {
     if (!registryCompanyId.trim()) return;
@@ -215,7 +284,7 @@ const Onboarding = () => {
   const addRegistryVessels = () => {
     if (!registryResults) return;
     const toAdd = registryResults.filter(v => selectedRegistryVessels.has(v.id));
-    const newVessels: VesselEntry[] = toAdd.map(v => ({
+    const newVessels: OnboardingVessel[] = toAdd.map(v => ({
       name: v.name,
       zone: '',
       species: '',
@@ -319,6 +388,35 @@ const Onboarding = () => {
                   placeholder="e.g. Pacific Fleet Management Ltd."
                   className="w-full px-3 py-2.5 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Company / Registration ID</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    value={registryQuery}
+                    onChange={e => setRegistryQuery(e.target.value)}
+                    placeholder="e.g. SHENZHEN RONGHENG OCEAN FISHERY CO.,LTD. or (YUE)CHUANDENG(JI)(2026)FT-200002"
+                    className="flex-1 px-3 py-2.5 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                  />
+                  <button
+                    onClick={loadGovernmentVessels}
+                    disabled={registryLoading}
+                    className="sm:w-auto px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {registryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                    Pull from Registry
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Source: WCPFC Record of Fishing Vessels (government/intergovernmental registry).
+                </p>
+                {registryError && <p className="text-[11px] text-destructive">{registryError}</p>}
+                {!registryError && registryLastImported > 0 && (
+                  <p className="text-[11px] text-success flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Imported {registryLastImported} registered vessel{registryLastImported > 1 ? 's' : ''}.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -552,6 +650,27 @@ const Onboarding = () => {
                         {GEAR_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
+                    {v.source === 'government' && (
+                      <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
+                        <p className="text-[10px] font-mono text-primary uppercase">Government record</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {v.ownerName ? `Owner: ${v.ownerName}` : 'Owner: —'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Reg: {v.registrationNumber || '—'} · IMO: {v.imo || '—'} · IRCS: {v.ircs || '—'}
+                        </p>
+                        {v.sourceUrl && (
+                          <a
+                            href={v.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-primary hover:underline"
+                          >
+                            View source
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

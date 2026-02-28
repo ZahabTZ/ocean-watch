@@ -4,7 +4,20 @@ export interface OnboardingData {
   role: string;
   orgName: string;
   region: string;
-  vessels: { name: string; zone: string; species: string; gear: string; trackingTag?: string }[];
+  vessels: {
+    name: string;
+    zone: string;
+    species: string;
+    gear: string;
+    trackingTag?: string;
+    source?: 'manual' | 'government';
+    registrationNumber?: string;
+    ownerName?: string;
+    imo?: string;
+    ircs?: string;
+    win?: string;
+    sourceUrl?: string;
+  }[];
   enabledSources: string[];
   rssFeeds: string[];
   twitterHandles: string[];

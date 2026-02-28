@@ -1,149 +1,133 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timezone
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 
-class MeasureType(str, Enum):
-    quota = "quota"
-    closure = "closure"
-    reporting = "reporting"
-    gear = "gear"
+class DocumentCategory(str, Enum):
+    conservation_management_measures = "conservation_management_measures"
+    recommendations_resolutions = "recommendations_resolutions"
+    circular_letters = "circular_letters"
+    iuu_vessel_lists = "iuu_vessel_lists"
+    quota_allocation_tables = "quota_allocation_tables"
+    meeting_decisions = "meeting_decisions"
+    other = "other"
 
 
-class ChangeType(str, Enum):
-    new = "new"
-    amendment = "amendment"
-    revocation = "revocation"
-    clarification = "clarification"
+class ProcessingStatus(str, Enum):
+    discovered = "discovered"
+    ingested = "ingested"
+    failed = "failed"
+    skipped = "skipped"
 
 
-class Severity(str, Enum):
-    critical = "critical"
-    high = "high"
-    medium = "medium"
-    low = "low"
+class IngestReason(str, Enum):
+    new_url = "new_url"
+    file_hash_changed = "file_hash_changed"
+    page_content_changed = "page_content_changed"
+    metadata_changed = "metadata_changed"
 
 
-class FleetProfileCreate(BaseModel):
-    org_id: str
-    name: str
-    rfmos: List[str] = Field(default_factory=list)
-    species: List[str] = Field(default_factory=list)
-    areas: List[str] = Field(default_factory=list)
-    gears: List[str] = Field(default_factory=list)
-
-
-class FleetProfile(FleetProfileCreate):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-
-
-class SourceDocumentCreate(BaseModel):
+class DocumentRef(BaseModel):
     rfmo: str
-    title: str
-    published_at: datetime
-    content: str
-    source_url: Optional[str] = None
-    external_id: Optional[str] = None
-    connector: Optional[str] = None
+    source_url: str
+    document_type: DocumentCategory
+    index_url: Optional[str] = None
+    title_hint: Optional[str] = None
+    published_date: Optional[date] = None
+    document_number: Optional[str] = None
+    meeting_reference: Optional[str] = None
+    rfmo_region: Optional[str] = None
+    language: Optional[str] = None
+    discovered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class SourceDocument(SourceDocumentCreate):
+class RawDocument(BaseModel):
+    source_url: str
+    status_code: int
+    headers: dict[str, str] = Field(default_factory=dict)
+    content_type: Optional[str] = None
+    body: bytes
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ParsedDocument(BaseModel):
+    title: Optional[str] = None
+    publication_date: Optional[date] = None
+    document_category: Optional[DocumentCategory] = None
+    document_number: Optional[str] = None
+    meeting_reference: Optional[str] = None
+    rfmo_region: Optional[str] = None
+    extracted_text: str = ""
+    snapshot_html: Optional[str] = None
+    parser_info: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChangeDecision(BaseModel):
+    should_ingest: bool
+    reasons: list[IngestReason] = Field(default_factory=list)
+    next_version_number: int
+
+
+class DocumentRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
-    ingested_at: datetime = Field(default_factory=datetime.utcnow)
+    rfmo: str
+    source_url: str
+    document_type: DocumentCategory
+    title: Optional[str] = None
+    publication_date: Optional[date] = None
+    latest_version: int = 0
+    latest_file_hash: Optional[str] = None
+    status: ProcessingStatus = ProcessingStatus.discovered
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class NormalizedMeasure(BaseModel):
+class DocumentVersionRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     document_id: str
+    version_number: int
+    file_hash: str
+    etag: Optional[str] = None
+    last_modified: Optional[str] = None
+    metadata_hash: Optional[str] = None
+    content_hash: Optional[str] = None
+    status: ProcessingStatus = ProcessingStatus.ingested
+    stored_path: str
+    extracted_text_path: str
+    snapshot_html_path: Optional[str] = None
+    metadata_path: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class RunMetrics(BaseModel):
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    finished_at: Optional[datetime] = None
+    duration_seconds: Optional[float] = None
+    documents_discovered: int = 0
+    documents_fetched: int = 0
+    documents_ingested: int = 0
+    documents_skipped: int = 0
+    failures: int = 0
+    parse_failures: int = 0
+    storage_bytes_written: int = 0
+
+
+class SourceHealth(BaseModel):
     rfmo: str
-    measure_type: MeasureType
-    species: Optional[str] = None
-    area: Optional[str] = None
-    old_value: Optional[str] = None
-    new_value: Optional[str] = None
-    units: Optional[str] = None
-    effective_date: Optional[datetime] = None
-    due_date: Optional[datetime] = None
-    confidence: float
-    raw_excerpt: str
+    adapter_name: str
+    last_success_at: Optional[datetime] = None
+    consecutive_failures: int = 0
+    last_error: Optional[str] = None
 
 
-class ChangeEvent(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    rfmo: str
-    measure_id: str
-    change_type: ChangeType
-    summary: str
-    published_at: datetime
-
-
-class ImpactAssessment(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    org_id: str
-    fleet_profile_id: str
-    change_event_id: str
-    impacted: bool
-    reason: str
-
-
-class Alert(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    org_id: str
-    change_event_id: str
-    severity: Severity
-    title: str
-    what_changed: str
-    action_required: str
-    due_date: Optional[datetime] = None
-    source_document_id: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class IngestResponse(BaseModel):
-    document: SourceDocument
-    measures: List[NormalizedMeasure]
-    change_events: List[ChangeEvent]
-    alerts: List[Alert]
-
-
-class ConnectorSyncRequest(BaseModel):
-    connector: str
-    limit: int = 20
-
-
-class ConnectorSyncResponse(BaseModel):
-    connector: str
-    fetched: int
-    ingested: int
-    skipped_duplicates: int
-    measures: int
-    change_events: int
-    alerts: int
-
-
-class SchedulerStartRequest(BaseModel):
-    connector: str
-    interval_seconds: int = 3600
-    limit: int = 20
-
-
-class ConnectorSyncAllRequest(BaseModel):
-    limit_per_connector: int = 10
-
-
-class ConnectorSyncAllResponse(BaseModel):
-    connectors_total: int
-    connectors_succeeded: int
-    connectors_failed: int
-    fetched: int
-    ingested: int
-    skipped_duplicates: int
-    measures: int
-    change_events: int
-    alerts: int
-    errors: List[str] = Field(default_factory=list)
+class IngestionRunResult(BaseModel):
+    run_id: str = Field(default_factory=lambda: str(uuid4()))
+    metrics: RunMetrics
+    source_health: list[SourceHealth] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
