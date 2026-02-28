@@ -1,27 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
-import { StatusCard } from '@/components/StatusCard';
-import { AlertCard } from '@/components/AlertCard';
-import { AlertDetail } from '@/components/AlertDetail';
-import { FleetPanel } from '@/components/FleetPanel';
-import { SourcesGrid } from '@/components/SourcesGrid';
+import { DashboardView } from '@/components/DashboardView';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
 import { CommPanel } from '@/components/CommPanel';
-import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare, Radio, User, Settings, LogOut } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, User, Settings, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(MOCK_ALERTS[0].id);
   const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm'>('map');
-  const selectedAlert = MOCK_ALERTS.find((a) => a.id === selectedAlertId);
 
-  const criticalCount = MOCK_ALERTS.filter((a) => a.severity === 'critical').length;
   const actionCount = MOCK_ALERTS.filter((a) => a.status === 'action_required').length;
-  const atRiskCount = MOCK_VESSELS.filter((v) => v.status === 'at_risk').length;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -43,42 +34,23 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center rounded-md border border-border bg-secondary/30 p-0.5">
-              <button
-                onClick={() => setView('map')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-                  view === 'map' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Map className="h-3 w-3" />
-                Map
-              </button>
-              <button
-                onClick={() => setView('dashboard')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-                  view === 'dashboard' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <LayoutDashboard className="h-3 w-3" />
-                Dashboard
-              </button>
-              <button
-                onClick={() => setView('chat')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-                  view === 'chat' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <MessageSquare className="h-3 w-3" />
-                Chat
-              </button>
-              <button
-                onClick={() => setView('comm')}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-                  view === 'comm' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Radio className="h-3 w-3" />
-                Comm
-              </button>
+              {(['map', 'dashboard', 'chat', 'comm'] as const).map(v => {
+                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio };
+                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm' };
+                const Icon = icons[v];
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                      view === v ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="h-3 w-3" />
+                    {labels[v]}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex items-center gap-1.5 rounded-md bg-destructive/10 border border-destructive/20 px-2.5 py-1">
@@ -127,60 +99,7 @@ const Index = () => {
           <CommPanel />
         </div>
       ) : (
-        <main className="flex-1 overflow-auto">
-          <div className="max-w-[1600px] mx-auto p-4 space-y-4">
-            {/* Status Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatusCard label="Critical Alerts" value={criticalCount} subtext="Require immediate action" type="destructive" />
-              <StatusCard label="Actions Pending" value={actionCount} subtext="Across all alerts" type="warning" />
-              <StatusCard label="Vessels at Risk" value={atRiskCount} subtext="Non-compliant exposure" type="primary" />
-              <StatusCard label="Sources Online" value="8/8" subtext="All RFMOs monitored" type="success" />
-            </div>
-
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <div className="lg:col-span-4">
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <h2 className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3 px-1">
-                    Active Alerts ({MOCK_ALERTS.length})
-                  </h2>
-                  <ScrollArea className="h-[calc(100vh-320px)]">
-                    <div className="space-y-2 pr-2">
-                      {MOCK_ALERTS.map((alert) => (
-                        <AlertCard
-                          key={alert.id}
-                          alert={alert}
-                          isSelected={selectedAlertId === alert.id}
-                          onClick={() => setSelectedAlertId(alert.id)}
-                        />
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </div>
-
-              <div className="lg:col-span-5">
-                <div className="rounded-lg border border-border bg-card p-4">
-                  {selectedAlert ? (
-                    <ScrollArea className="h-[calc(100vh-320px)]">
-                      <AlertDetail alert={selectedAlert} />
-                    </ScrollArea>
-                  ) : (
-                    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Select an alert to view details
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="lg:col-span-3 space-y-4">
-                <FleetPanel />
-              </div>
-            </div>
-
-            <SourcesGrid />
-          </div>
-        </main>
+        <DashboardView onSwitchToMap={() => setView('map')} />
       )}
     </div>
   );
