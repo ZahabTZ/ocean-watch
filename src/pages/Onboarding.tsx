@@ -9,7 +9,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { fetchWcpfcVesselsByCompanyOrRegistration, type GovernmentVesselRecord } from '@/lib/wcpfcRegistry';
-import { DEMO_COMPANY, DEMO_FLEET_PROFILE, saveFleetProfile, seedDemoFleetProfile } from '@/data/liveData';
+import { DEMO_COMPANY, saveFleetProfile } from '@/data/liveData';
 
 const STEPS = [
   { num: 1, label: 'Profile', icon: <User className="h-4 w-4" /> },
@@ -136,15 +136,7 @@ const Onboarding = () => {
   const [region, setRegion] = useState('pacific');
 
   // Step 2
-  const [vessels, setVessels] = useState<OnboardingVessel[]>(
-    DEMO_FLEET_PROFILE.vessels.map((v, idx) => ({
-      name: v.name,
-      zone: v.zone,
-      species: v.species,
-      gear: idx < 2 ? 'Longline' : idx === 2 ? 'Purse Seine' : 'Longline',
-      trackingTag: `DEMO-${idx + 1}`,
-    }))
-  );
+  const [vessels, setVessels] = useState<OnboardingVessel[]>([]);
   const [registryCompanyId, setRegistryCompanyId] = useState('');
   const [registrySearching, setRegistrySearching] = useState(false);
   const [registryResults, setRegistryResults] = useState<typeof REGISTRY_VESSELS_SAMPLE | null>(null);
@@ -172,6 +164,7 @@ const Onboarding = () => {
   const recommendedRfmos = selectedRegion?.rfmos || [];
   const availableZones = recommendedRfmos.flatMap(r => ZONE_MAP[r] || []);
   const aiSources = region ? (AI_RECOMMENDED_SOURCES[region] || []) : [];
+  const hasImportedRegistryFleet = vessels.some(v => v.source === 'government' && v.name.trim().length > 0);
 
   // Keep source recommendations aligned with selected region.
   useEffect(() => {
@@ -432,25 +425,8 @@ const Onboarding = () => {
                   <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 space-y-2">
                     <p className="text-[11px] text-destructive">{registryError}</p>
                     <p className="text-[10px] text-destructive/80">
-                      Try an exact registration number/IMO, or continue with the preloaded demo profile.
+                      Try an exact registration number/IMO and pull again.
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => {
-                          seedDemoFleetProfile();
-                          navigate('/');
-                        }}
-                        className="px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors"
-                      >
-                        Use Demo Fleet Now
-                      </button>
-                      <button
-                        onClick={() => setStep(2)}
-                        className="px-2.5 py-1.5 rounded-md border border-border text-[10px] text-foreground hover:bg-secondary/30 transition-colors"
-                      >
-                        Continue with Manual Fleet
-                      </button>
-                    </div>
                   </div>
                 )}
                 {!registryError && registryLastImported > 0 && (
@@ -458,16 +434,6 @@ const Onboarding = () => {
                     <Check className="h-3 w-3" /> Imported {registryLastImported} registered vessel{registryLastImported > 1 ? 's' : ''}.
                   </p>
                 )}
-                <button
-                  onClick={() => {
-                    seedDemoFleetProfile();
-                    navigate('/');
-                  }}
-                  className="mt-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Load working demo profile and continue
-                </button>
               </div>
 
               <div className="space-y-2">
@@ -1004,8 +970,11 @@ const Onboarding = () => {
             }`}>
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
-          <button onClick={next}
-            className="flex items-center gap-1.5 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+          <button
+            onClick={next}
+            disabled={step === 1 && !hasImportedRegistryFleet}
+            className="flex items-center gap-1.5 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
             Continue <ChevronRight className="h-4 w-4" />
           </button>
         </div>
