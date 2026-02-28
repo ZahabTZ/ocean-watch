@@ -1,341 +1,353 @@
 from __future__ import annotations
 
-import hashlib
-import html
-import io
 import re
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Iterable, List, Optional
+import time
+from abc import ABC, abstractmethod
+from datetime import date
+from html import unescape
+from typing import Iterable
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
+from urllib.robotparser import RobotFileParser
 
-from rfmo_ingest_pipeline.models import SourceDocumentCreate
-
-
-@dataclass
-class ConnectorItem:
-    rfmo: str
-    title: str
-    published_at: datetime
-    source_url: str
-    content: str
-    external_id: str
+from rfmo_ingest_pipeline.models import DocumentCategory, DocumentRef, ParsedDocument, RawDocument
 
 
-@dataclass
-class SourceConfig:
+LINK_RE = re.compile(r'<a[^>]+href=["\'](?P<href>[^"\']+)["\'][^>]*>(?P<text>.*?)</a>', re.IGNORECASE | re.DOTALL)
+TAG_RE = re.compile(r"<[^>]+>")
+DATE_PATTERNS = [
+    re.compile(r"(20\d{2}-\d{2}-\d{2})"),
+    re.compile(r"([0-3]?\d/[0-1]?\d/20\d{2})"),
+    re.compile(
+        r"([0-3]?\d\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2})",
+        re.IGNORECASE,
+    ),
+]
+DOC_NUMBER_RE = re.compile(r"\b(?:CMM|REC|RES|Recommendation|Resolution)\s*[-:]?\s*([0-9]{4}[-/][0-9]{1,3})\b", re.IGNORECASE)
+MEETING_REF_RE = re.compile(r"\b(?:COM|WCPFC|IOTC)[-_ ]?(?:\d{1,2}|20\d{2})\b", re.IGNORECASE)
+
+
+class RFMOAdapter(ABC):
     name: str
     rfmo: str
-    base_url: str
-    listing_url: str
 
+    @abstractmethod
+    def list_documents(self) -> list[DocumentRef]:
+        raise NotImplementedError
 
-class BaseConnector:
-    name: str
+    @abstractmethod
+    def fetch_document(self, ref: DocumentRef) -> RawDocument:
+        raise NotImplementedError
 
-    def fetch(self, limit: int = 20) -> List[ConnectorItem]:
+    @abstractmethod
+    def extract_metadata(self, raw: RawDocument, ref: DocumentRef) -> ParsedDocument:
         raise NotImplementedError
 
 
-class GenericWebListingConnector(BaseConnector):
-    def __init__(self, config: SourceConfig, fetch_timeout_seconds: int = 20) -> None:
-        self.config = config
-        self.name = config.name
-        self.fetch_timeout_seconds = fetch_timeout_seconds
+class HtmlRFMOAdapter(RFMOAdapter):
+    def __init__(
+        self,
+        name: str,
+        rfmo: str,
+        category_indexes: dict[DocumentCategory, list[str]],
+        user_agent: str,
+        timeout_seconds: int = 30,
+        min_request_interval_seconds: float = 0.25,
+        respect_robots: bool = True,
+    ) -> None:
+        self.name = name
+        self.rfmo = rfmo
+        self.category_indexes = category_indexes
+        self.user_agent = user_agent
+        self.timeout_seconds = timeout_seconds
+        self.min_request_interval_seconds = min_request_interval_seconds
+        self.respect_robots = respect_robots
+        self._robots_cache: dict[str, RobotFileParser] = {}
+        self._last_request_at = 0.0
 
-    def fetch(self, limit: int = 20) -> List[ConnectorItem]:
-        html_doc = self._download(self.config.listing_url)
-        links = list(self._extract_links(html_doc))
+    def list_documents(self) -> list[DocumentRef]:
+        refs: list[DocumentRef] = []
+        seen_urls: set[str] = set()
 
-        items: List[ConnectorItem] = []
-        seen: set[str] = set()
-        for link_url, link_text, context in links:
-            normalized_url = urljoin(self.config.base_url, link_url)
-            if normalized_url in seen:
-                continue
-            if not self._is_document_candidate(normalized_url, link_text):
-                continue
+        for category, index_urls in self.category_indexes.items():
+            for index_url in index_urls:
+                try:
+                    raw = self._fetch(index_url)
+                    html_text = raw.body.decode("utf-8", errors="replace")
+                except Exception:
+                    continue
 
-            seen.add(normalized_url)
-            published_at = self._extract_date(context) or datetime.now(timezone.utc)
-            title = self._clean_text(link_text) or self._title_from_url(normalized_url)
-            context_clean = self._clean_text(context)
-            content = ". ".join(
-                [
-                    title,
-                    f"Context: {context_clean[:320]}" if context_clean else "",
-                    f"Source: {normalized_url}",
-                ]
-            ).strip(" .")
+                for href, link_text, context in self._extract_links(html_text):
+                    absolute = urljoin(index_url, href)
+                    if absolute in seen_urls:
+                        continue
+                    if not self._is_document_candidate(absolute, link_text, context):
+                        continue
 
-            external_hash = hashlib.sha1(normalized_url.encode("utf-8")).hexdigest()[:16]
-            items.append(
-                ConnectorItem(
-                    rfmo=self.config.rfmo,
-                    title=title[:200],
-                    published_at=published_at,
-                    source_url=normalized_url,
-                    content=content,
-                    external_id=f"{self.name}:{external_hash}",
-                )
-            )
+                    seen_urls.add(absolute)
+                    refs.append(
+                        DocumentRef(
+                            rfmo=self.rfmo,
+                            source_url=absolute,
+                            document_type=category,
+                            index_url=index_url,
+                            title_hint=self._clean_text(link_text)[:240] or self._filename_from_url(absolute),
+                            published_date=self._extract_date(context),
+                            document_number=self._extract_document_number(f"{link_text} {context}"),
+                            meeting_reference=self._extract_meeting_reference(f"{link_text} {context}"),
+                            rfmo_region=self._default_region(),
+                        )
+                    )
 
-            if len(items) >= limit:
-                break
+        return refs
 
-        return items
+    def fetch_document(self, ref: DocumentRef) -> RawDocument:
+        return self._fetch(ref.source_url)
 
-    def _download(self, url: str) -> str:
-        req = Request(url, headers={"User-Agent": "rfmo-intel-mvp/0.1"})
+    def extract_metadata(self, raw: RawDocument, ref: DocumentRef) -> ParsedDocument:
+        content_type = (raw.content_type or "").lower()
+        text = ref.title_hint or self._filename_from_url(ref.source_url)
+        publication_date = ref.published_date
+        if "html" in content_type:
+            html_text = raw.body.decode("utf-8", errors="replace")
+            page_title = self._extract_html_title(html_text)
+            text = page_title or text
+            publication_date = publication_date or self._extract_date(html_text)
+
+        return ParsedDocument(
+            title=text,
+            publication_date=publication_date,
+            document_category=ref.document_type,
+            document_number=ref.document_number,
+            meeting_reference=ref.meeting_reference,
+            rfmo_region=ref.rfmo_region,
+        )
+
+    def _fetch(self, url: str) -> RawDocument:
+        self._wait_for_rate_limit()
+        self._assert_allowed_by_robots(url)
+
+        req = Request(url, headers={"User-Agent": self.user_agent})
         try:
-            with urlopen(req, timeout=self.fetch_timeout_seconds) as resp:
-                return resp.read().decode("utf-8", errors="replace")
+            with urlopen(req, timeout=self.timeout_seconds) as resp:
+                headers = {k: v for k, v in resp.headers.items()}
+                body = resp.read()
+                return RawDocument(
+                    source_url=url,
+                    status_code=getattr(resp, "status", 200),
+                    headers=headers,
+                    content_type=resp.headers.get("Content-Type"),
+                    body=body,
+                )
         except (HTTPError, URLError) as exc:
-            raise RuntimeError(f"Failed to download connector source: {url}") from exc
+            raise RuntimeError(f"Failed to fetch URL: {url}") from exc
+
+    def _wait_for_rate_limit(self) -> None:
+        elapsed = time.monotonic() - self._last_request_at
+        if elapsed < self.min_request_interval_seconds:
+            time.sleep(self.min_request_interval_seconds - elapsed)
+        self._last_request_at = time.monotonic()
+
+    def _assert_allowed_by_robots(self, url: str) -> None:
+        if not self.respect_robots:
+            return
+        parsed = urlparse(url)
+        host = f"{parsed.scheme}://{parsed.netloc}"
+        rp = self._robots_cache.get(host)
+        if rp is None:
+            robots_url = urljoin(host, "/robots.txt")
+            rp = RobotFileParser()
+            rp.set_url(robots_url)
+            try:
+                rp.read()
+            except Exception:
+                self._robots_cache[host] = rp
+                return
+            self._robots_cache[host] = rp
+
+        if not rp.can_fetch(self.user_agent, url):
+            raise RuntimeError(f"Blocked by robots.txt: {url}")
 
     def _extract_links(self, html_doc: str) -> Iterable[tuple[str, str, str]]:
-        pattern = re.compile(r'<a[^>]+href=["\'](?P<href>[^"\']+)["\'][^>]*>(?P<text>.*?)</a>', re.IGNORECASE | re.DOTALL)
-        for match in pattern.finditer(html_doc):
+        for match in LINK_RE.finditer(html_doc):
             href = match.group("href").strip()
-            text = match.group("text").strip()
-            start = max(0, match.start() - 220)
-            end = min(len(html_doc), match.end() + 220)
-            context = html_doc[start:end]
-            yield href, text, context
+            link_text = self._clean_text(match.group("text"))
+            start = max(0, match.start() - 240)
+            end = min(len(html_doc), match.end() + 240)
+            context = self._clean_text(html_doc[start:end])
+            yield href, link_text, context
 
-    def _is_document_candidate(self, url: str, text: str) -> bool:
+    def _is_document_candidate(self, url: str, link_text: str, context: str) -> bool:
+        lowered = f"{url} {link_text} {context}".lower()
         if url.startswith("mailto:") or url.startswith("javascript:"):
             return False
-        signal = f"{url} {text}".lower()
-        keywords = [
-            ".pdf",
-            "circular",
+        if any(ext in lowered for ext in [".pdf", ".doc", ".docx", ".htm", ".html"]):
+            return True
+
+        category_terms = [
+            "conservation",
+            "management measure",
             "recommendation",
             "resolution",
-            "measure",
+            "circular",
+            "iuu",
             "quota",
-            "closure",
-            "notice",
-            "compliance",
-            "reporting",
-            "document",
+            "meeting",
+            "decision",
         ]
-        return any(k in signal for k in keywords)
+        return any(t in lowered for t in category_terms)
 
-    def _extract_date(self, text: str) -> Optional[datetime]:
-        iso = re.search(r"(20\d{2}-\d{2}-\d{2})", text)
-        if iso:
-            return datetime.strptime(iso.group(1), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    def _extract_html_title(self, html_doc: str) -> str | None:
+        m = re.search(r"<title[^>]*>(.*?)</title>", html_doc, re.IGNORECASE | re.DOTALL)
+        if not m:
+            return None
+        return self._clean_text(m.group(1))[:240]
 
-        dmy = re.search(r"([0-3]?\d/[0-1]?\d/20\d{2})", text)
-        if dmy:
-            return datetime.strptime(dmy.group(1), "%d/%m/%Y").replace(tzinfo=timezone.utc)
-
-        month = re.search(
-            r"([0-3]?\d\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2})",
-            text,
-            flags=re.IGNORECASE,
-        )
-        if month:
-            return datetime.strptime(month.group(1), "%d %B %Y").replace(tzinfo=timezone.utc)
+    def _extract_date(self, text: str) -> date | None:
+        for idx, pattern in enumerate(DATE_PATTERNS):
+            m = pattern.search(text)
+            if not m:
+                continue
+            raw = m.group(1)
+            try:
+                if idx == 0:
+                    return date.fromisoformat(raw)
+                if idx == 1:
+                    d, mth, y = raw.split("/")
+                    return date(int(y), int(mth), int(d))
+                return date.fromisoformat(time.strftime("%Y-%m-%d", time.strptime(raw, "%d %B %Y")))
+            except Exception:
+                continue
         return None
 
+    def _extract_document_number(self, text: str) -> str | None:
+        m = DOC_NUMBER_RE.search(text)
+        if not m:
+            return None
+        return m.group(1)
+
+    def _extract_meeting_reference(self, text: str) -> str | None:
+        m = MEETING_REF_RE.search(text)
+        if not m:
+            return None
+        return m.group(0)
+
+    def _filename_from_url(self, url: str) -> str:
+        tail = urlparse(url).path.rstrip("/").split("/")[-1]
+        return tail or self.rfmo
+
     def _clean_text(self, value: str) -> str:
-        stripped = re.sub(r"<[^>]+>", " ", value)
-        collapsed = re.sub(r"\s+", " ", stripped).strip()
-        return html.unescape(collapsed)
+        text = TAG_RE.sub(" ", value)
+        text = re.sub(r"\s+", " ", text).strip()
+        return unescape(text)
 
-    def _title_from_url(self, url: str) -> str:
-        tail = url.rstrip("/").split("/")[-1]
-        tail = re.sub(r"[-_]+", " ", tail)
-        return tail[:200] or self.config.rfmo
+    def _default_region(self) -> str:
+        return {
+            "ICCAT": "Atlantic Ocean",
+            "WCPFC": "Western and Central Pacific Ocean",
+            "IOTC": "Indian Ocean",
+        }.get(self.rfmo, self.rfmo)
 
 
-class IotcCircularsConnector(BaseConnector):
-    name = "iotc_circulars"
-    base_url = "https://iotc.org"
-    listing_url = "https://iotc.org/documents/circulars"
-
-    def __init__(self, fetch_timeout_seconds: int = 20) -> None:
-        self.fetch_timeout_seconds = fetch_timeout_seconds
-
-    def fetch(self, limit: int = 20) -> List[ConnectorItem]:
-        html_doc = self._download(self.listing_url)
-        rows = self._extract_rows(html_doc)
-
-        items: List[ConnectorItem] = []
-        for row in rows:
-            parsed = self._parse_row(row)
-            if parsed is None:
-                continue
-            items.append(parsed)
-            if len(items) >= limit:
-                break
-        return items
-
-    def _download(self, url: str) -> str:
-        req = Request(url, headers={"User-Agent": "rfmo-intel-mvp/0.1"})
-        try:
-            with urlopen(req, timeout=self.fetch_timeout_seconds) as resp:
-                return resp.read().decode("utf-8", errors="replace")
-        except (HTTPError, URLError) as exc:
-            raise RuntimeError(f"Failed to download connector source: {url}") from exc
-
-    def _extract_rows(self, html_doc: str) -> Iterable[str]:
-        return re.findall(r"<tr[^>]*>.*?</tr>", html_doc, flags=re.DOTALL | re.IGNORECASE)
-
-    def _parse_row(self, row_html: str) -> Optional[ConnectorItem]:
-        circ = re.search(r"IOTC\s+CIRCULAR\s*([0-9]{4}-[0-9]{2})", row_html, flags=re.IGNORECASE)
-        if circ is None:
-            return None
-        circular_id = circ.group(1)
-
-        title_match = re.search(
-            r"<td[^>]*class=\"[^\"]*views-field-title[^\"]*\"[^>]*>.*?<a href=\"(?P<url>[^\"]+)\">(?P<title>.*?)</a>",
-            row_html,
-            flags=re.DOTALL | re.IGNORECASE,
+class ICCATAdapter(HtmlRFMOAdapter):
+    def __init__(self, user_agent: str) -> None:
+        super().__init__(
+            name="iccat",
+            rfmo="ICCAT",
+            category_indexes={
+                DocumentCategory.conservation_management_measures: [
+                    "https://www.iccat.int/en/RecRes.asp",
+                    "https://www.iccat.int/en/decisions.asp",
+                ],
+                DocumentCategory.recommendations_resolutions: [
+                    "https://www.iccat.int/en/RecRes.asp",
+                ],
+                DocumentCategory.meeting_decisions: [
+                    "https://www.iccat.int/en/meetings.asp",
+                ],
+                DocumentCategory.iuu_vessel_lists: [
+                    "https://www.iccat.int/en/IUU.asp",
+                ],
+            },
+            user_agent=user_agent,
         )
-        date_match = re.search(
-            r"content=\"(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2})T",
-            row_html,
-            flags=re.IGNORECASE,
+
+
+class WCPFCAdapter(HtmlRFMOAdapter):
+    def __init__(self, user_agent: str) -> None:
+        super().__init__(
+            name="wcpfc",
+            rfmo="WCPFC",
+            category_indexes={
+                DocumentCategory.conservation_management_measures: [
+                    "https://www.wcpfc.int/conservation-and-management-measures",
+                    "https://cmm.wcpfc.int",
+                ],
+                DocumentCategory.circular_letters: [
+                    "https://circs.wcpfc.int",
+                ],
+                DocumentCategory.meeting_decisions: [
+                    "https://meetings.wcpfc.int",
+                ],
+                DocumentCategory.iuu_vessel_lists: [
+                    "https://www.wcpfc.int/iuu-vessel-list",
+                ],
+                DocumentCategory.quota_allocation_tables: [
+                    "https://www.wcpfc.int/annual-catch-limits",
+                ],
+            },
+            user_agent=user_agent,
         )
-        pdf_match = re.search(r"href=\"(?P<pdf>https://iotc\.org/sites/default/files/documents/[^\"]+\.pdf)\"", row_html)
 
-        if title_match is None or date_match is None:
-            return None
 
-        item_url = title_match.group("url")
-        if item_url.startswith("/"):
-            item_url = f"{self.base_url}{item_url}"
-
-        title = self._clean_text(title_match.group("title"))
-        pub_date = datetime.strptime(date_match.group("date"), "%Y-%m-%d").replace(tzinfo=timezone.utc)
-
-        pdf_url = pdf_match.group("pdf") if pdf_match else ""
-        detail_text = self._extract_detail_text(item_url)
-        pdf_text = self._extract_pdf_text(pdf_url) if pdf_url else ""
-
-        content_parts = [title]
-        if detail_text:
-            content_parts.append(f"Detail: {detail_text}")
-        if pdf_text:
-            content_parts.append(f"PDF_TEXT: {pdf_text}")
-        if pdf_url:
-            content_parts.append(f"PDF: {pdf_url}")
-        content_parts.append(f"Reference: IOTC Circular {circular_id}")
-
-        return ConnectorItem(
+class IOTCAdapter(HtmlRFMOAdapter):
+    def __init__(self, user_agent: str) -> None:
+        super().__init__(
+            name="iotc",
             rfmo="IOTC",
-            title=f"IOTC Circular {circular_id}",
-            published_at=pub_date,
-            source_url=item_url,
-            content=". ".join(content_parts),
-            external_id=f"iotc:{circular_id}",
+            category_indexes={
+                DocumentCategory.conservation_management_measures: [
+                    "https://iotc.org/cmm",
+                ],
+                DocumentCategory.recommendations_resolutions: [
+                    "https://iotc.org/recommendations",
+                    "https://iotc.org/resolutions",
+                ],
+                DocumentCategory.circular_letters: [
+                    "https://iotc.org/documents/circulars",
+                ],
+                DocumentCategory.meeting_decisions: [
+                    "https://iotc.org/meetings",
+                ],
+                DocumentCategory.iuu_vessel_lists: [
+                    "https://iotc.org/iuu-list",
+                ],
+                DocumentCategory.quota_allocation_tables: [
+                    "https://iotc.org/quota-allocation",
+                ],
+            },
+            user_agent=user_agent,
         )
 
-    def _clean_text(self, value: str) -> str:
-        stripped = re.sub(r"<[^>]+>", " ", value)
-        collapsed = re.sub(r"\s+", " ", stripped).strip()
-        return html.unescape(collapsed)
 
-    def _extract_detail_text(self, item_url: str) -> str:
-        try:
-            html_doc = self._download(item_url)
-        except RuntimeError:
-            return ""
-
-        title_match = re.search(r"<h1[^>]*>(.*?)</h1>", html_doc, flags=re.IGNORECASE | re.DOTALL)
-        ref_match = re.search(
-            r'field-name-field-reference[^>]*>.*?<div class="field-item[^\"]*">(.*?)</div>',
-            html_doc,
-            flags=re.IGNORECASE | re.DOTALL,
-        )
-        bits: List[str] = []
-        if title_match:
-            bits.append(self._clean_text(title_match.group(1)))
-        if ref_match:
-            bits.append(self._clean_text(ref_match.group(1)))
-        return ". ".join(bits)
-
-    def _extract_pdf_text(self, pdf_url: str) -> str:
-        try:
-            from pypdf import PdfReader
-        except Exception:
-            return ""
-
-        try:
-            req = Request(pdf_url, headers={"User-Agent": "rfmo-intel-mvp/0.1"})
-            with urlopen(req, timeout=self.fetch_timeout_seconds) as resp:
-                data = resp.read()
-            reader = PdfReader(io.BytesIO(data))
-            chunks: List[str] = []
-            for page in reader.pages[:4]:
-                txt = page.extract_text() or ""
-                if txt.strip():
-                    chunks.append(txt.strip())
-            merged = " ".join(chunks)
-            merged = re.sub(r"\s+", " ", merged).strip()
-            return merged[:6000]
-        except Exception:
-            return ""
-
-
-class ConnectorRegistry:
-    def __init__(self) -> None:
-        source_configs = [
-            SourceConfig("ccamlr_documents", "CCAMLR", "https://www.ccamlr.org", "https://www.ccamlr.org/en/document/publications"),
-            SourceConfig("ccsbt_news", "CCSBT", "https://www.ccsbt.org", "https://www.ccsbt.org/en/content/news"),
-            SourceConfig("gfcm_news", "GFCM", "https://www.fao.org", "https://www.fao.org/gfcm/news-events/news/en/"),
-            SourceConfig("iattc_news", "IATTC", "https://www.iattc.org", "https://www.iattc.org/en-US/News"),
-            SourceConfig("iccat_news", "ICCAT", "https://www.iccat.int", "https://www.iccat.int/en/"),
-            SourceConfig("nafo_documents", "NAFO", "https://www.nafo.int", "https://www.nafo.int/Portals/0/PDFs/"),
-            SourceConfig("nasco_news", "NASCO", "https://nasco.int", "https://nasco.int/news/"),
-            SourceConfig("neafc_news", "NEAFC", "https://www.neafc.org", "https://www.neafc.org/news"),
-            SourceConfig("npfc_news", "NPFC", "https://www.npfc.int", "https://www.npfc.int/news"),
-            SourceConfig("npafc_news", "NPAFC", "https://npafc.org", "https://npafc.org/news"),
-            SourceConfig("seafo_news", "SEAFO", "https://www.seafo.org", "https://www.seafo.org/news"),
-            SourceConfig("siofa_news", "SIOFA", "https://www.apsoi.org", "https://www.apsoi.org/news"),
-            SourceConfig("sprfmo_news", "SPRFMO", "https://www.sprfmo.int", "https://www.sprfmo.int/news/"),
-            SourceConfig("wcpfc_news", "WCPFC", "https://www.wcpfc.int", "https://www.wcpfc.int/news"),
-            SourceConfig("wecafc_news", "WECAFC", "https://www.fao.org", "https://www.fao.org/wecafc/news-events/en/"),
-            SourceConfig("cecaf_news", "CECAF", "https://www.fao.org", "https://www.fao.org/cecaf/news-events/en/"),
-            SourceConfig("recofi_news", "RECOFI", "https://www.fao.org", "https://www.fao.org/recofi/news-events/en/"),
-            SourceConfig("swiofc_news", "SWIOFC", "https://www.fao.org", "https://www.fao.org/swiofc/news-events/en/"),
-            SourceConfig("apfic_news", "APFIC", "https://www.fao.org", "https://www.fao.org/apfic/news-events/en/"),
-            SourceConfig("bobpigo_news", "BOBP-IGO", "https://www.bobpigo.org", "https://www.bobpigo.org/pages/news.php"),
-            SourceConfig("sica_ospesca_news", "OSPESCA", "https://www.sica.int", "https://www.sica.int/ospesca/noticias/"),
+class AdapterRegistry:
+    def __init__(self, user_agent: str = "ocean-watch-rfmo-ingestion/1.0") -> None:
+        adapters: list[RFMOAdapter] = [
+            ICCATAdapter(user_agent=user_agent),
+            WCPFCAdapter(user_agent=user_agent),
+            IOTCAdapter(user_agent=user_agent),
         ]
+        self._adapters = {a.name: a for a in adapters}
 
-        self._connectors: dict[str, BaseConnector] = {
-            IotcCircularsConnector.name: IotcCircularsConnector(),
-        }
-        for config in source_configs:
-            self._connectors[config.name] = GenericWebListingConnector(config)
+    def names(self) -> list[str]:
+        return sorted(self._adapters.keys())
 
-    def names(self) -> List[str]:
-        return sorted(self._connectors.keys())
+    def all(self) -> list[RFMOAdapter]:
+        return [self._adapters[name] for name in self.names()]
 
-    def get(self, name: str) -> BaseConnector:
-        connector = self._connectors.get(name)
-        if connector is None:
+    def get(self, name: str) -> RFMOAdapter:
+        adapter = self._adapters.get(name)
+        if adapter is None:
             raise KeyError(name)
-        return connector
-
-    def fetch_documents(self, name: str, limit: int = 20) -> List[SourceDocumentCreate]:
-        connector = self.get(name)
-        items = connector.fetch(limit=limit)
-        return [
-            SourceDocumentCreate(
-                rfmo=i.rfmo,
-                title=i.title,
-                published_at=i.published_at,
-                source_url=i.source_url,
-                content=i.content,
-                external_id=i.external_id,
-                connector=name,
-            )
-            for i in items
-        ]
+        return adapter
