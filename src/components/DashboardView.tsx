@@ -1,53 +1,106 @@
-import { useState } from 'react';
-import { MOCK_ALERTS, MOCK_VESSELS, CATEGORY_META, type AlertCategory } from '@/data/mockData';
+import { useState, useMemo } from 'react';
+import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
 import { getSeverityConfig } from '@/lib/alertUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
 import {
   Shield, AlertCircle, MapPin, Clock, ChevronRight, ChevronDown, ChevronUp,
   Ship, Fish, Calendar, Eye, Play, ArrowRight, TrendingUp, Gauge
 } from 'lucide-react';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { buildUserProfile, filterAlerts, filterVessels } from '@/lib/userProfile';
 
 interface DashboardViewProps {
   onSwitchToMap: () => void;
 }
 
-// Timeline items derived from alerts
-const TIMELINE_ITEMS = [
-  { id: 't1', severity: 'critical' as const, label: 'Today', text: 'Bigeye quota cut 8%, Zone EPO-3', alertId: 'alert-001', time: '2h ago' },
-  { id: 't2', severity: 'critical' as const, label: 'Today', text: 'Yellowfin quota cut 12%, Zone IO-4', alertId: 'alert-002', time: '6h ago' },
-  { id: 't3', severity: 'warning' as const, label: 'Yesterday', text: 'Area 48.1 temporary closure announced', alertId: 'alert-003', time: '1d ago' },
-  { id: 't4', severity: 'warning' as const, label: '2 days ago', text: 'Swordfish bycatch at 87% — approaching limit', alertId: 'alert-005', time: '2d ago' },
-  { id: 't5', severity: 'info' as const, label: '3 days ago', text: 'VMS reporting frequency updated, WCPFC', alertId: 'alert-004', time: '3d ago' },
+// Hardcoded quota percentages per species (no real tracking)
+const SPECIES_QUOTA_USED: Record<string, number> = {
+  'Bigeye Tuna': 78,
+  'Yellowfin Tuna': 41,
+  'Swordfish': 92,
+  'Antarctic Krill': 23,
+  'Skipjack': 56,
+  'Albacore': 34,
+  'Blue Marlin': 65,
+};
+
+// Full action queue — filtered at runtime
+const ALL_ACTIONS = [
+  { id: 'aq1', severity: 'critical' as const, title: 'Redirect FV Southern Explorer from Area 48.1', deadline: '6 days', actionLabel: 'Act Now', vessels: ['FV Southern Explorer'] },
+  { id: 'aq2', severity: 'critical' as const, title: 'Recalculate EPO-3 bigeye vessel allocations', deadline: '10 days', actionLabel: 'Act Now', vessels: ['MV Pacific Harvester', 'FV Blue Meridian'] },
+  { id: 'aq3', severity: 'warning' as const, title: 'Submit IO-4 quarterly catch report', deadline: '12 days', actionLabel: 'Start', vessels: ['FV Ocean Spirit', 'MV Coral Runner', 'FV Deep Blue'] },
+  { id: 'aq4', severity: 'warning' as const, title: 'Update VMS firmware on MV Pacific Harvester', deadline: '25 days', actionLabel: 'Schedule', vessels: ['MV Pacific Harvester'] },
+  { id: 'aq5', severity: 'info' as const, title: 'Review new ICCAT blue shark gear restrictions', deadline: 'No deadline', actionLabel: 'Read', vessels: ['FV Atlantic Prize', 'MV Northern Star'] },
 ];
 
-// Quota data
-const QUOTA_DATA = [
-  { species: 'Bigeye Tuna', used: 78, zone: 'EPO-3', warning: false },
-  { species: 'Yellowfin Tuna', used: 41, zone: 'IO-4', warning: false },
-  { species: 'Swordfish', used: 92, zone: 'NA-2', warning: true },
-  { species: 'Antarctic Krill', used: 23, zone: 'Area 48.1', warning: false },
-  { species: 'Skipjack', used: 56, zone: 'WCPO', warning: false },
-];
-
-// Action queue
-const ACTION_QUEUE = [
-  { id: 'aq1', severity: 'critical' as const, title: 'Redirect FV Southern Explorer from Area 48.1', deadline: '6 days', actionLabel: 'Act Now' },
-  { id: 'aq2', severity: 'critical' as const, title: 'Recalculate EPO-3 bigeye vessel allocations', deadline: '10 days', actionLabel: 'Act Now' },
-  { id: 'aq3', severity: 'warning' as const, title: 'Submit IO-4 quarterly catch report', deadline: '12 days', actionLabel: 'Start' },
-  { id: 'aq4', severity: 'warning' as const, title: 'Update VMS firmware on MV Pacific Harvester', deadline: '25 days', actionLabel: 'Schedule' },
-  { id: 'aq5', severity: 'info' as const, title: 'Review new ICCAT blue shark gear restrictions', deadline: 'No deadline', actionLabel: 'Read' },
-];
+function timeAgoLabel(publishedDate: string): { label: string; time: string } {
+  const now = new Date();
+  const pub = new Date(publishedDate);
+  const diffMs = now.getTime() - pub.getTime();
+  const diffH = Math.floor(diffMs / 3_600_000);
+  if (diffH < 24) return { label: 'Today', time: `${diffH}h ago` };
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return { label: 'Yesterday', time: '1d ago' };
+  return { label: `${diffD} days ago`, time: `${diffD}d ago` };
+}
 
 export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
   const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
+  const { data: onboardingData } = useOnboarding();
 
-  const criticalCount = MOCK_ALERTS.filter(a => a.severity === 'critical').length;
-  const actionCount = MOCK_ALERTS.filter(a => a.status === 'action_required').length;
-  const zonesAffected = new Set(MOCK_ALERTS.filter(a => a.status === 'action_required').map(a => a.zone)).size;
+  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
+  const userAlerts = useMemo(() => profile ? filterAlerts(MOCK_ALERTS, profile) : MOCK_ALERTS, [profile]);
+  const userVessels = useMemo(() => profile ? filterVessels(userVessels, profile) : userVessels, [profile]);
 
-  // Compliance score
-  const complianceScore = 87;
+  // Derive timeline from filtered alerts
+  const timelineItems = useMemo(() =>
+    userAlerts.map(a => {
+      const ta = timeAgoLabel(a.publishedDate);
+      return { id: `t-${a.id}`, severity: a.severity, label: ta.label, text: a.title.replace(/ — .+$/, ''), alertId: a.id, time: ta.time };
+    }),
+  [userAlerts]);
+
+  // Derive quotas from filtered vessels
+  const quotaData = useMemo(() => {
+    const seen = new Set<string>();
+    const entries: { species: string; used: number; zone: string; warning: boolean }[] = [];
+    userVessels.forEach(v => {
+      v.species.forEach(sp => {
+        const key = `${sp}|${v.zone}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const used = SPECIES_QUOTA_USED[sp] ?? 50;
+        entries.push({ species: sp, used, zone: v.zone, warning: used >= 90 });
+      });
+    });
+    return entries;
+  }, [userVessels]);
+
+  // Filter action queue by user vessels
+  const actionQueue = useMemo(() => {
+    if (!profile || profile.vesselNames.length === 0) return ALL_ACTIONS;
+    const vesselSet = new Set(userVessels.map(v => v.name));
+    const filtered = ALL_ACTIONS.filter(a => a.vessels.some(v => vesselSet.has(v)));
+    return filtered.length > 0 ? filtered : ALL_ACTIONS;
+  }, [profile, userVessels]);
+
+  const criticalCount = userAlerts.filter(a => a.severity === 'critical').length;
+  const actionCount = userAlerts.filter(a => a.status === 'action_required').length;
+  const zonesAffected = new Set(userAlerts.filter(a => a.status === 'action_required').map(a => a.zone)).size;
+
+  // Compliance score from vessels
+  const complianceScore = userVessels.length > 0
+    ? Math.round((userVessels.filter(v => v.status === 'compliant').length / userVessels.length) * 100)
+    : 100;
+  const avgQuotaUsed = quotaData.length > 0 ? Math.round(quotaData.reduce((s, q) => s + q.used, 0) / quotaData.length) : 0;
+  const nextDeadlineDays = useMemo(() => {
+    const now = new Date();
+    const deadlines = userAlerts
+      .filter(a => a.status === 'action_required' && a.actionDeadline)
+      .map(a => Math.max(0, Math.ceil((new Date(a.actionDeadline).getTime() - now.getTime()) / 86_400_000)));
+    return deadlines.length > 0 ? Math.min(...deadlines) : 0;
+  }, [userAlerts]);
+
   const scoreColor = complianceScore >= 90 ? 'text-success' : complianceScore >= 70 ? 'text-warning' : 'text-destructive';
   const scoreBg = complianceScore >= 90 ? 'bg-success/10 border-success/20' : complianceScore >= 70 ? 'bg-warning/10 border-warning/20' : 'bg-destructive/10 border-destructive/20';
   const scoreDot = complianceScore >= 90 ? 'bg-success' : complianceScore >= 70 ? 'bg-warning' : 'bg-destructive';
@@ -91,7 +144,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
           <StatCard
             icon={<TrendingUp className="h-4 w-4" />}
             label="Quota Used"
-            value="78%"
+            value={`${avgQuotaUsed}%`}
             badge="Avg"
             type="warning"
           />
@@ -105,7 +158,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
           <StatCard
             icon={<Clock className="h-4 w-4" />}
             label="Next Deadline"
-            value="6"
+            value={`${nextDeadlineDays}`}
             badge="days"
             type="destructive"
           />
@@ -120,11 +173,14 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
               Timeline
             </h2>
             <div className="space-y-1">
-              {TIMELINE_ITEMS.map((item, i) => {
+              {timelineItems.length === 0 && (
+                <p className="text-xs text-muted-foreground py-4 text-center">No alerts for your configuration</p>
+              )}
+              {timelineItems.map((item, i) => {
                 const sev = getSeverityConfig(item.severity);
                 const Icon = sev.icon;
                 const isExpanded = expandedTimeline === item.id;
-                const alert = MOCK_ALERTS.find(a => a.id === item.alertId);
+                const alert = userAlerts.find(a => a.id === item.alertId);
 
                 return (
                   <div key={item.id}>
@@ -140,7 +196,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
                           item.severity === 'critical' ? 'bg-destructive' :
                           item.severity === 'warning' ? 'bg-warning' : 'bg-primary'
                         }`} />
-                        {i < TIMELINE_ITEMS.length - 1 && (
+                        {i < timelineItems.length - 1 && (
                           <div className="w-px h-3 bg-border" />
                         )}
                       </div>
@@ -213,7 +269,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
               </div>
 
               {/* Vessel dots */}
-              {MOCK_VESSELS.map((v, i) => {
+              {userVessels.map((v, i) => {
                 const positions = [
                   { x: 65, y: 45 }, { x: 72, y: 52 }, { x: 55, y: 60 },
                   { x: 52, y: 68 }, { x: 48, y: 55 }, { x: 30, y: 80 },
@@ -241,7 +297,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-destructive" /> At Risk</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" /> Action</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" /> OK</span>
-              <span className="ml-auto">{MOCK_VESSELS.length} vessels tracked</span>
+              <span className="ml-auto">{userVessels.length} vessels tracked</span>
             </div>
           </div>
         </div>
@@ -253,7 +309,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
             Quota Tracker
           </h2>
           <div className="space-y-3">
-            {QUOTA_DATA.map(q => (
+            {quotaData.map(q => (
               <div key={q.species} className="group">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
@@ -290,7 +346,7 @@ export function DashboardView({ onSwitchToMap }: DashboardViewProps) {
             Action Queue — Prioritized
           </h2>
           <div className="space-y-2">
-            {ACTION_QUEUE.map(action => {
+            {actionQueue.map(action => {
               const sevConfig = getSeverityConfig(action.severity);
               const Icon = sevConfig.icon;
               return (

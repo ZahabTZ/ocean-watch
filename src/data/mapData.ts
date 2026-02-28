@@ -29,18 +29,21 @@ const ZONE_POLYGONS: Record<string, LatLngExpression[]> = {
   ],
 };
 
-export function buildMapZones(): MapZone[] {
+export function buildMapZones(
+  alerts: typeof MOCK_ALERTS = MOCK_ALERTS,
+  vessels: typeof MOCK_VESSELS = MOCK_VESSELS,
+): MapZone[] {
   const allZoneNames = new Set([
-    ...MOCK_ALERTS.map(a => a.zone),
-    ...MOCK_VESSELS.map(v => v.zone),
+    ...alerts.map(a => a.zone),
+    ...vessels.map(v => v.zone),
   ]);
 
   return Array.from(allZoneNames).map(zoneName => {
     const coords = ZONE_POLYGONS[zoneName];
     if (!coords) return null;
 
-    const zoneAlerts = MOCK_ALERTS.filter(a => a.zone === zoneName);
-    const zoneVessels = MOCK_VESSELS.filter(v => v.zone === zoneName);
+    const zoneAlerts = alerts.filter(a => a.zone === zoneName);
+    const zoneVessels = vessels.filter(v => v.zone === zoneName);
 
     let status: MapZone['status'] = 'green';
     if (zoneAlerts.some(a => a.severity === 'critical')) status = 'red';
@@ -79,8 +82,8 @@ const VESSEL_POSITIONS: Record<string, [number, number]> = {
   'v8': [35, -38],
 };
 
-export function buildMapVessels(): MapVessel[] {
-  return MOCK_VESSELS.map(v => ({
+export function buildMapVessels(vessels: typeof MOCK_VESSELS = MOCK_VESSELS): MapVessel[] {
+  return vessels.map(v => ({
     id: v.id,
     name: v.name,
     flag: v.flag,

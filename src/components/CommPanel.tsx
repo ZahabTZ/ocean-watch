@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Shield, CheckCircle2, XCircle, Zap, TrendingUp, ChevronDown, ChevronUp, AlertTriangle, Clock, Anchor } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { CATEGORY_META, type AlertCategory } from '@/data/mockData';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { buildUserProfile } from '@/lib/userProfile';
 
 interface RecommendedAction {
   id: string;
@@ -101,7 +103,18 @@ const confidenceColor = (score: number) => {
 };
 
 export const CommPanel = () => {
-  const [actions, setActions] = useState(INITIAL_ACTIONS);
+  const { data: onboardingData } = useOnboarding();
+  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
+
+  const filteredInitial = useMemo(() => {
+    if (!profile || profile.vesselNames.length === 0) return INITIAL_ACTIONS;
+    const filtered = INITIAL_ACTIONS.filter(a =>
+      a.affectedVessels.some(v => profile.vesselNames.includes(v))
+    );
+    return filtered.length > 0 ? filtered : INITIAL_ACTIONS;
+  }, [profile]);
+
+  const [actions, setActions] = useState(filteredInitial);
   const [autonomy, setAutonomy] = useState([25]); // 0-100
   const [showAutonomySlider, setShowAutonomySlider] = useState(false);
 

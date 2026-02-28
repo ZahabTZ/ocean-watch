@@ -1,4 +1,5 @@
 import { MOCK_ALERTS, MOCK_VESSELS, MOCK_RFMO_SOURCES, CATEGORY_META, ComplianceAlert } from '@/data/mockData';
+import { UserProfile, filterAlerts, filterVessels } from './userProfile';
 
 /**
  * Local compliance knowledge base query engine.
@@ -11,7 +12,7 @@ interface QueryResult {
   sources: ComplianceAlert[];
 }
 
-const FLEET_PROFILE = {
+const DEFAULT_FLEET_PROFILE = {
   zones: ['EPO-3', 'IO-4', 'Area 48.1', 'WCPO High Seas', 'NA-2'],
   species: ['Bigeye Tuna', 'Yellowfin Tuna', 'Swordfish', 'Antarctic Krill'],
   vesselNames: MOCK_VESSELS.map(v => v.name),
@@ -29,11 +30,11 @@ function extractKeywords(query: string): string[] {
     .filter(w => w.length > 2 && !['what', 'the', 'that', 'this', 'how', 'does', 'are', 'was', 'for', 'with', 'from', 'have', 'has', 'can', 'will', 'need', 'any', 'about'].includes(w));
 }
 
-function findRelevantAlerts(query: string): ComplianceAlert[] {
+function findRelevantAlerts(query: string, alerts: ComplianceAlert[] = MOCK_ALERTS): ComplianceAlert[] {
   const keywords = extractKeywords(query);
   const lower = query.toLowerCase();
 
-  return MOCK_ALERTS.filter(alert => {
+  return alerts.filter(alert => {
     // Category-level matching
     if (lower.includes('quota') && alert.category === 'quota') return true;
     if (lower.includes('clos') && alert.category === 'closure') return true;
@@ -81,13 +82,19 @@ function isWeeklyQuestion(query: string): boolean {
   return lower.includes('this week') || lower.includes('changed') || lower.includes('new') || lower.includes('recent') || lower.includes('latest');
 }
 
-export function queryKnowledgeBase(query: string): QueryResult {
+export function queryKnowledgeBase(query: string, profile?: UserProfile): QueryResult {
   const lower = query.toLowerCase();
-  const relevantAlerts = findRelevantAlerts(query);
+  const baseAlerts = profile ? filterAlerts(MOCK_ALERTS, profile) : MOCK_ALERTS;
+  const baseVessels = profile ? filterVessels(MOCK_VESSELS, profile) : MOCK_VESSELS;
+  const baseSources = profile ? MOCK_RFMO_SOURCES.filter(s => profile.rfmos.includes(s.acronym)) : MOCK_RFMO_SOURCES;
+  const fleetProfile = profile
+    ? { zones: profile.zones, species: profile.species, vesselNames: profile.vesselNames }
+    : DEFAULT_FLEET_PROFILE;
+  const relevantAlerts = findRelevantAlerts(query, baseAlerts);
 
   // "What changed this week?"
   if (isWeeklyQuestion(lower) && relevantAlerts.length === 0) {
-    const actionAlerts = MOCK_ALERTS.filter(a => a.status === 'action_required');
+    const actionAlerts = baseAlerts.filter(a => a.status === 'action_required');
     const summary = actionAlerts.map(a => {
       const cat = CATEGORY_META[a.category];
       return `• **${cat.icon} ${a.title}** (${cat.label})\n  ${a.summary}`;
@@ -156,21 +163,21 @@ export function queryKnowledgeBase(query: string): QueryResult {
 
   // Fallback — general fleet status
   if (lower.includes('fleet') || lower.includes('vessel') || lower.includes('status')) {
-    const atRisk = MOCK_VESSELS.filter(v => v.status === 'at_risk');
-    const actionNeeded = MOCK_VESSELS.filter(v => v.status === 'action_needed');
-    const compliant = MOCK_VESSELS.filter(v => v.status === 'compliant');
+    const atRisk = baseVessels.filter(v => v.status === 'at_risk');
+    const actionNeeded = baseVessels.filter(v => v.status === 'action_needed');
+    const compliant = baseVessels.filter(v => v.status === 'compliant');
 
     return {
-      answer: `**Fleet Overview:**\n\n🔴 **At Risk (${atRisk.length}):** ${atRisk.map(v => `${v.flag} ${v.name}`).join(', ')}\n\n🟡 **Action Needed (${actionNeeded.length}):** ${actionNeeded.map(v => `${v.flag} ${v.name}`).join(', ')}\n\n🟢 **Compliant (${compliant.length}):** ${compliant.map(v => `${v.flag} ${v.name}`).join(', ')}\n\nTotal: ${MOCK_VESSELS.length} vessels across ${new Set(MOCK_VESSELS.map(v => v.zone)).size} zones.`,
+      answer: `**Fleet Overview:**\n\n🔴 **At Risk (${atRisk.length}):** ${atRisk.map(v => `${v.flag} ${v.name}`).join(', ') || 'None'}\n\n🟡 **Action Needed (${actionNeeded.length}):** ${actionNeeded.map(v => `${v.flag} ${v.name}`).join(', ') || 'None'}\n\n🟢 **Compliant (${compliant.length}):** ${compliant.map(v => `${v.flag} ${v.name}`).join(', ') || 'None'}\n\nTotal: ${baseVessels.length} vessels across ${new Set(baseVessels.map(v => v.zone)).size} zones.`,
       sources: [],
     };
   }
 
   // Sources status
   if (lower.includes('source') || lower.includes('rfmo') || lower.includes('monitor')) {
-    const online = MOCK_RFMO_SOURCES.filter(s => s.status === 'online').length;
+    const online = baseSources.filter(s => s.status === 'online').length;
     return {
-      answer: `**RFMO Monitoring Status:** ${online}/${MOCK_RFMO_SOURCES.length} sources online.\n\n${MOCK_RFMO_SOURCES.map(s => `• **${s.acronym}** (${s.region}): ${s.status === 'online' ? '🟢' : '🟡'} ${s.status} — ${s.documentsIngested} docs ingested, last checked ${s.lastChecked}`).join('\n')}`,
+      answer: `**RFMO Monitoring Status:** ${online}/${baseSources.length} sources online.\n\n${baseSources.map(s => `• **${s.acronym}** (${s.region}): ${s.status === 'online' ? '🟢' : '🟡'} ${s.status} — ${s.documentsIngested} docs ingested, last checked ${s.lastChecked}`).join('\n')}`,
       sources: [],
     };
   }

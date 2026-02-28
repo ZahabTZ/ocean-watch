@@ -7,6 +7,8 @@ import { getVesselStatusConfig, getSeverityConfig } from '@/lib/alertUtils';
 import { Ship, ChevronRight, Fish, MapPin, Calendar, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { buildUserProfile, filterAlerts, filterVessels } from '@/lib/userProfile';
 
 const STATUS_COLORS: Record<string, { fill: string; stroke: string }> = {
   red: { fill: 'rgba(220, 60, 60, 0.25)', stroke: 'rgba(220, 60, 60, 0.8)' },
@@ -20,9 +22,9 @@ const VESSEL_COLORS: Record<string, string> = {
   at_risk: '#ef4444',
 };
 
-function ZoneDetailPanel({ zone, onClose }: { zone: MapZone; onClose: () => void }) {
-  const alerts = MOCK_ALERTS.filter(a => zone.alertIds.includes(a.id));
-  const vessels = MOCK_VESSELS.filter(v => zone.vesselIds.includes(v.id));
+function ZoneDetailPanel({ zone, onClose, allAlerts, allVessels }: { zone: MapZone; onClose: () => void; allAlerts: typeof MOCK_ALERTS; allVessels: typeof MOCK_VESSELS }) {
+  const alerts = allAlerts.filter(a => zone.alertIds.includes(a.id));
+  const vessels = allVessels.filter(v => zone.vesselIds.includes(v.id));
   const statusLabel = zone.status === 'red' ? 'CRITICAL' : zone.status === 'yellow' ? 'WATCH' : 'CLEAR';
   const statusText = zone.status === 'red'
     ? 'text-destructive'
@@ -129,8 +131,14 @@ function ZoneDetailPanel({ zone, onClose }: { zone: MapZone; onClose: () => void
 export function MapView() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const zones = useMemo(() => buildMapZones(), []);
-  const vessels = useMemo(() => buildMapVessels(), []);
+  const { data: onboardingData } = useOnboarding();
+
+  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
+  const userAlerts = useMemo(() => profile ? filterAlerts(MOCK_ALERTS, profile) : MOCK_ALERTS, [profile]);
+  const userVessels = useMemo(() => profile ? filterVessels(MOCK_VESSELS, profile) : MOCK_VESSELS, [profile]);
+
+  const zones = useMemo(() => buildMapZones(userAlerts, userVessels), [userAlerts, userVessels]);
+  const vessels = useMemo(() => buildMapVessels(userVessels), [userVessels]);
   const [selectedZone, setSelectedZone] = useState<MapZone | null>(null);
   const polygonLayersRef = useRef<Map<string, L.Polygon>>(new Map());
 
@@ -245,7 +253,7 @@ export function MapView() {
       </div>
 
       {selectedZone && (
-        <ZoneDetailPanel zone={selectedZone} onClose={() => setSelectedZone(null)} />
+        <ZoneDetailPanel zone={selectedZone} onClose={() => setSelectedZone(null)} allAlerts={userAlerts} allVessels={userVessels} />
       )}
     </div>
   );
