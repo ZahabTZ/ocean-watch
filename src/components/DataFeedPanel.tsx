@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { MOCK_FEED_ITEMS, FEED_SOURCE_TYPES, FEED_CATEGORIES, FEED_REGIONS, FeedItem, FeedStatus } from '@/data/feedData';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { buildUserProfile } from '@/lib/userProfile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -191,6 +193,14 @@ function FeedCard({ item }: { item: FeedItem }) {
   );
 }
 
+const REGION_LABELS: Record<string, string[]> = {
+  pacific: ['Eastern Pacific', 'Western Pacific', 'South Pacific', 'North Pacific'],
+  atlantic: ['North Atlantic', 'NW Atlantic', 'Atlantic Ocean'],
+  indian: ['Indian Ocean'],
+  southern: ['Southern Ocean'],
+  multi: [],
+};
+
 export function DataFeedPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSource, setFilterSource] = useState('');
@@ -201,7 +211,18 @@ export function DataFeedPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
-  const items = MOCK_FEED_ITEMS.filter(item => {
+  const { data: onboardingData } = useOnboarding();
+  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
+
+  const preFiltered = useMemo(() => {
+    if (!profile || profile.region === 'multi') return MOCK_FEED_ITEMS;
+    const regionLabels = REGION_LABELS[profile.region] || [];
+    return MOCK_FEED_ITEMS.filter(item =>
+      regionLabels.includes(item.region) || profile.rfmos.includes(item.sourceOrg)
+    );
+  }, [profile]);
+
+  const items = preFiltered.filter(item => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!item.title.toLowerCase().includes(q) && !item.aiSpecies.toLowerCase().includes(q) && !item.aiZone.toLowerCase().includes(q) && !item.sourceOrg.toLowerCase().includes(q) && !item.rawSummary.toLowerCase().includes(q)) return false;
@@ -213,8 +234,8 @@ export function DataFeedPanel() {
     return true;
   });
 
-  const todayUpdates = MOCK_FEED_ITEMS.filter(i => i.minutesAgo < 1440).length;
-  const flaggedCount = MOCK_FEED_ITEMS.filter(i => i.status === 'flagged').length;
+  const todayUpdates = preFiltered.filter(i => i.minutesAgo < 1440).length;
+  const flaggedCount = preFiltered.filter(i => i.status === 'flagged').length;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

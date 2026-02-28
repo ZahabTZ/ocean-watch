@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { queryKnowledgeBase } from '@/lib/complianceChat';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { buildUserProfile } from '@/lib/userProfile';
 
 interface ChatMessage {
   id: string;
@@ -10,7 +12,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const SUGGESTED_QUESTIONS = [
+const DEFAULT_QUESTIONS = [
   "What changed this week that affects my tuna fleet?",
   "Am I compliant in Zone 4 right now?",
   "What do I need to do before March?",
@@ -46,6 +48,21 @@ function formatMarkdown(text: string): JSX.Element {
 }
 
 export function ChatPanel() {
+  const { data: onboardingData } = useOnboarding();
+  const profile = useMemo(() => onboardingData ? buildUserProfile(onboardingData) : null, [onboardingData]);
+
+  const suggestedQuestions = useMemo(() => {
+    if (!profile || !profile.zones.length) return DEFAULT_QUESTIONS;
+    const zone = profile.zones[0];
+    const species = profile.species.length > 0 ? profile.species[0] : 'tuna';
+    return [
+      `What changed this week that affects my ${species.toLowerCase()} fleet?`,
+      `Am I compliant in ${zone} right now?`,
+      "What do I need to do before March?",
+      "Show me my fleet status",
+    ];
+  }, [profile]);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -82,7 +99,7 @@ export function ChatPanel() {
     // Simulate brief processing time
     await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 800));
 
-    const result = queryKnowledgeBase(text);
+    const result = queryKnowledgeBase(text, profile ?? undefined);
 
     const assistantMsg: ChatMessage = {
       id: `assistant-${Date.now()}`,
@@ -162,7 +179,7 @@ export function ChatPanel() {
         {messages.length === 1 && (
           <div className="space-y-1.5 pt-2">
             <span className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider">Try asking:</span>
-            {SUGGESTED_QUESTIONS.map(q => (
+            {suggestedQuestions.map(q => (
               <button
                 key={q}
                 onClick={() => sendMessage(q)}
