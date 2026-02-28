@@ -138,6 +138,7 @@ const Onboarding = () => {
   const [registrySearching, setRegistrySearching] = useState(false);
   const [registryResults, setRegistryResults] = useState<typeof MOCK_REGISTRY_VESSELS | null>(null);
   const [selectedRegistryVessels, setSelectedRegistryVessels] = useState<Set<string>>(new Set());
+  const [registrySubscribed, setRegistrySubscribed] = useState(false);
 
   // Step 3
   const [enabledSources, setEnabledSources] = useState<string[]>(['rfmo']);
@@ -405,9 +406,23 @@ const Onboarding = () => {
 
                 {registryResults && (
                   <div className="space-y-2 pt-1">
-                    <p className="text-[10px] font-mono uppercase text-muted-foreground">
-                      {registryResults.length} vessels found for "{registryCompanyId}"
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-mono uppercase text-muted-foreground">
+                        {registryResults.length} vessels found for "{registryCompanyId}"
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (selectedRegistryVessels.size === registryResults.length) {
+                            setSelectedRegistryVessels(new Set());
+                          } else {
+                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.id)));
+                          }
+                        }}
+                        className="text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        {selectedRegistryVessels.size === registryResults.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
                     {registryResults.map(rv => {
                       const selected = selectedRegistryVessels.has(rv.id);
                       return (
@@ -439,6 +454,32 @@ const Onboarding = () => {
                         <Plus className="h-3.5 w-3.5" />
                         Add {selectedRegistryVessels.size} vessel{selectedRegistryVessels.size > 1 ? 's' : ''} to fleet
                       </button>
+                    )}
+
+                    {/* Subscribe to registry */}
+                    <div className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
+                      registrySubscribed ? 'border-success/40 bg-success/5' : 'border-border bg-secondary/10'
+                    }`}>
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        registrySubscribed ? 'bg-success/15 text-success' : 'bg-secondary/30 text-muted-foreground'
+                      }`}>
+                        <Bell className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground">Subscribe to this registry</p>
+                        <p className="text-[10px] text-muted-foreground">Auto-add new vessels registered under this company ID</p>
+                      </div>
+                      <Switch
+                        checked={registrySubscribed}
+                        onCheckedChange={setRegistrySubscribed}
+                        className="data-[state=checked]:bg-success flex-shrink-0"
+                      />
+                    </div>
+                    {registrySubscribed && (
+                      <p className="text-[10px] text-success/80 flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        You'll be notified when new vessels are added to this registry
+                      </p>
                     )}
                   </div>
                 )}
