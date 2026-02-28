@@ -74,6 +74,23 @@
   }
 }
 
+/* Leaflet overrides for dark theme */
+.leaflet-container {
+  background: hsl(220, 25%, 7%) !important;
+  font-family: 'Inter', sans-serif;
+}
+.leaflet-tooltip {
+  background: hsl(220, 22%, 10%) !important;
+  border-color: hsl(220, 15%, 18%) !important;
+  color: hsl(200, 20%, 90%) !important;
+}
+.leaflet-tooltip-top::before {
+  border-top-color: hsl(220, 15%, 18%) !important;
+}
+.leaflet-tooltip-bottom::before {
+  border-bottom-color: hsl(220, 15%, 18%) !important;
+}
+
 @layer utilities {
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
