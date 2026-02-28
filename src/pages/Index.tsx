@@ -8,12 +8,13 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { CommPanel } from '@/components/CommPanel';
 import { CommunityPanel } from '@/components/CommunityPanel';
 import { RequestsPanel } from '@/components/RequestsPanel';
-import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, Users, User, Settings, LogOut, Microscope, Inbox } from 'lucide-react';
+import { DataFeedPanel } from '@/components/DataFeedPanel';
+import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, Users, User, Settings, LogOut, Microscope, Inbox, Activity } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community' | 'requests'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community' | 'requests' | 'feed'>('map');
   const pendingRequests = MOCK_RESEARCH_REQUESTS.filter(r => r.status === 'pending').length;
 
   const actionCount = MOCK_ALERTS.filter((a) => a.status === 'action_required').length;
@@ -45,9 +46,9 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center rounded-md border border-border bg-secondary/30 p-0.5">
-              {(['map', 'dashboard', 'chat', 'comm', 'community', 'requests'] as const).map(v => {
-                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio, community: Users, requests: Inbox };
-                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm', community: 'Community', requests: 'Requests' };
+              {(['map', 'dashboard', 'feed', 'chat', 'comm', 'community', 'requests'] as const).map(v => {
+                const icons = { map: Map, dashboard: LayoutDashboard, feed: Activity, chat: MessageSquare, comm: Radio, community: Users, requests: Inbox };
+                const labels = { map: 'Map', dashboard: 'Dashboard', feed: 'Data Feed', chat: 'Chat', comm: 'Comm', community: 'Community', requests: 'Requests' };
                 const hasBadge = v === 'requests' && pendingRequests > 0;
                 const Icon = icons[v];
                 return (
@@ -104,6 +105,10 @@ const Index = () => {
       {view === 'map' ? (
         <div className="flex-1 relative overflow-hidden">
           <MapView />
+        </div>
+      ) : view === 'feed' ? (
+        <div className="flex-1 overflow-hidden">
+          <DataFeedPanel />
         </div>
       ) : view === 'chat' ? (
         <div className="flex-1 overflow-hidden">
