@@ -1,10 +1,20 @@
 export type AlertSeverity = 'critical' | 'warning' | 'info';
 export type AlertStatus = 'action_required' | 'acknowledged' | 'resolved';
+export type AlertCategory = 'quota' | 'closure' | 'species_status' | 'reporting' | 'penalties';
+
+export const CATEGORY_META: Record<AlertCategory, { label: string; icon: string; description: string }> = {
+  quota: { label: 'Quota', icon: '📊', description: 'Species, zone, amount, change vs. previous' },
+  closure: { label: 'Closure', icon: '🚫', description: 'Area, dates, what\'s prohibited' },
+  species_status: { label: 'Species Status', icon: '🐟', description: 'New protections, gear restrictions' },
+  reporting: { label: 'Reporting', icon: '📋', description: 'New forms, deadlines, frequencies' },
+  penalties: { label: 'Penalties', icon: '⚠️', description: 'What non-compliance now costs' },
+};
 
 export interface ComplianceAlert {
   id: string;
   severity: AlertSeverity;
   status: AlertStatus;
+  category: AlertCategory;
   title: string;
   summary: string;
   rfmo: string;
@@ -15,6 +25,9 @@ export interface ComplianceAlert {
   affectedVessels: string[];
   actionDeadline: string;
   changeDetail: string;
+  previousValue?: string;
+  newValue?: string;
+  penaltyAmount?: string;
   sourceUrl?: string;
 }
 
@@ -44,6 +57,7 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     id: 'alert-001',
     severity: 'critical',
     status: 'action_required',
+    category: 'quota',
     title: 'Bigeye Tuna Quota Reduction — IATTC',
     summary: 'IATTC reduced bigeye tuna quota by 8% in Zone EPO-3. Your 2 vessels fishing there need updated catch limits immediately.',
     rfmo: 'IATTC',
@@ -54,11 +68,14 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     affectedVessels: ['MV Pacific Harvester', 'FV Blue Meridian'],
     actionDeadline: '2026-03-10',
     changeDetail: 'Annual quota reduced from 62,000t to 57,040t (-8%). Vessel-level allocations must be recalculated.',
+    previousValue: '62,000t',
+    newValue: '57,040t',
   },
   {
     id: 'alert-002',
     severity: 'critical',
     status: 'action_required',
+    category: 'quota',
     title: 'Yellowfin Tuna Quota Cut — IOTC',
     summary: 'IOTC reduced yellowfin tuna quota by 12% in Zone 4 effective March 1. Your 3 vessels fishing there need updated catch limits.',
     rfmo: 'IOTC',
@@ -69,11 +86,15 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     affectedVessels: ['FV Ocean Spirit', 'MV Coral Runner', 'FV Deep Blue'],
     actionDeadline: '2026-02-28',
     changeDetail: 'Quarterly allocation cut from 18,500t to 16,280t. Non-compliance penalty: €45,000 per vessel.',
+    previousValue: '18,500t',
+    newValue: '16,280t',
+    penaltyAmount: '€45,000 per vessel',
   },
   {
     id: 'alert-003',
     severity: 'warning',
     status: 'action_required',
+    category: 'closure',
     title: 'Temporary Closure — CCAMLR Area 48.1',
     summary: 'CCAMLR announced temporary closure of krill fishery in Area 48.1 for environmental survey. Reopening TBD.',
     rfmo: 'CCAMLR',
@@ -89,6 +110,7 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     id: 'alert-004',
     severity: 'info',
     status: 'acknowledged',
+    category: 'reporting',
     title: 'Updated VMS Requirements — WCPFC',
     summary: 'WCPFC updated vessel monitoring system reporting frequency from 4-hour to 2-hour intervals in high seas pockets.',
     rfmo: 'WCPFC',
@@ -104,6 +126,7 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     id: 'alert-005',
     severity: 'warning',
     status: 'action_required',
+    category: 'quota',
     title: 'Swordfish Bycatch Limit Approaching — ICCAT',
     summary: 'ICCAT seasonal bycatch limit for swordfish in North Atlantic at 87% utilization. Approaching closure threshold.',
     rfmo: 'ICCAT',
@@ -114,6 +137,8 @@ export const MOCK_ALERTS: ComplianceAlert[] = [
     affectedVessels: ['FV Atlantic Prize', 'MV Northern Star'],
     actionDeadline: '2026-03-05',
     changeDetail: 'Seasonal bycatch allocation: 2,340t used of 2,700t limit (87%). Auto-closure at 100%.',
+    previousValue: '2,700t limit',
+    newValue: '2,340t used (87%)',
   },
 ];
 

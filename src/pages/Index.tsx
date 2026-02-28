@@ -6,12 +6,13 @@ import { AlertDetail } from '@/components/AlertDetail';
 import { FleetPanel } from '@/components/FleetPanel';
 import { SourcesGrid } from '@/components/SourcesGrid';
 import { MapView } from '@/components/MapView';
-import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard } from 'lucide-react';
+import { ChatPanel } from '@/components/ChatPanel';
+import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const Index = () => {
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(MOCK_ALERTS[0].id);
-  const [view, setView] = useState<'map' | 'dashboard'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'chat'>('map');
   const selectedAlert = MOCK_ALERTS.find((a) => a.id === selectedAlertId);
 
   const criticalCount = MOCK_ALERTS.filter((a) => a.severity === 'critical').length;
@@ -56,6 +57,15 @@ const Index = () => {
                 <LayoutDashboard className="h-3 w-3" />
                 Dashboard
               </button>
+              <button
+                onClick={() => setView('chat')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                  view === 'chat' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageSquare className="h-3 w-3" />
+                Chat
+              </button>
             </div>
 
             <div className="flex items-center gap-1.5 rounded-md bg-destructive/10 border border-destructive/20 px-2.5 py-1">
@@ -74,6 +84,10 @@ const Index = () => {
       {view === 'map' ? (
         <div className="flex-1 relative overflow-hidden">
           <MapView />
+        </div>
+      ) : view === 'chat' ? (
+        <div className="flex-1 overflow-hidden">
+          <ChatPanel />
         </div>
       ) : (
         <main className="flex-1 overflow-auto">
