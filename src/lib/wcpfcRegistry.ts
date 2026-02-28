@@ -1,4 +1,5 @@
-const WCPFC_BASE_URL = 'https://vessels.wcpfc.int';
+const WCPFC_ORIGIN = 'https://vessels.wcpfc.int';
+const WCPFC_BASE_URL = import.meta.env.DEV ? '/api/wcpfc' : WCPFC_ORIGIN;
 
 type AutocompleteResponseItem = {
   value: string;
@@ -92,7 +93,7 @@ export const parseWcpfcVesselHtml = (html: string, fallbackVid: string): Governm
     win: readTextBySelectors(doc, ['.vessel-version__vsl-win .field__item']),
     imo: readTextBySelectors(doc, ['.vessel-origin__vslo-imo-number .field__item']),
     ownerName: readTextBySelectors(doc, ['.vessel-version__vsl-owner-name .field__item']),
-    sourceUrl: `${WCPFC_BASE_URL}/vessel/${fallbackVid}`,
+    sourceUrl: `${WCPFC_ORIGIN}/vessel/${fallbackVid}`,
   };
 };
 
@@ -212,4 +213,4 @@ export const fetchWcpfcVesselsByCompanyOrRegistration = async (
   return (filteredRows.length ? filteredRows : detailRows).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-export const WCPFC_REGISTRY_SOURCE = WCPFC_BASE_URL;
+export const WCPFC_REGISTRY_SOURCE = WCPFC_ORIGIN;

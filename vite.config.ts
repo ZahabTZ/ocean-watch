@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/api/wcpfc': {
+        target: 'https://vessels.wcpfc.int',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/wcpfc/, ''),
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
