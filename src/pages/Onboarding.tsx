@@ -238,6 +238,7 @@ const Onboarding = () => {
         zone: '',
         species: '',
         gear: mapGovernmentGear(record.vesselType),
+        trackingTag: '',
         source: 'government',
         registrationNumber: record.registrationNumber,
         ownerName: record.ownerName,
@@ -249,7 +250,7 @@ const Onboarding = () => {
 
       setVessels(importedVessels);
       setRegistryLastImported(importedVessels.length);
-      setStep(2);
+      
 
       if (!orgName.trim()) {
         const owner = results.find(r => r.ownerName)?.ownerName;
@@ -390,34 +391,6 @@ const Onboarding = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Company / Registration ID</label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    value={registryQuery}
-                    onChange={e => setRegistryQuery(e.target.value)}
-                    placeholder="e.g. SHENZHEN RONGHENG OCEAN FISHERY CO.,LTD. or (YUE)CHUANDENG(JI)(2026)FT-200002"
-                    className="flex-1 px-3 py-2.5 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-                  />
-                  <button
-                    onClick={loadGovernmentVessels}
-                    disabled={registryLoading}
-                    className="sm:w-auto px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {registryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-                    Pull from Registry
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Source: WCPFC Record of Fishing Vessels (government/intergovernmental registry).
-                </p>
-                {registryError && <p className="text-[11px] text-destructive">{registryError}</p>}
-                {!registryError && registryLastImported > 0 && (
-                  <p className="text-[11px] text-success flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Imported {registryLastImported} registered vessel{registryLastImported > 1 ? 's' : ''}.
-                  </p>
-                )}
-              </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Region of Operation</label>
@@ -471,34 +444,43 @@ const Onboarding = () => {
                 </button>
               </div>
 
-              {/* Registry Lookup */}
+              {/* WCPFC Registry Lookup */}
               <div className="rounded-lg border border-border bg-card p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Shield className="h-4 w-4 text-primary" />
+                    <Database className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-foreground">National Registry Lookup</p>
-                    <p className="text-[10px] text-muted-foreground">Find registered vessels by your company ID</p>
+                    <p className="text-xs font-semibold text-foreground">WCPFC Government Registry</p>
+                    <p className="text-[10px] text-muted-foreground">Search by company name or registration number</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <input
-                    value={registryCompanyId}
-                    onChange={e => setRegistryCompanyId(e.target.value)}
-                    placeholder="Enter Company / Operator ID (e.g. CID-48291)"
+                    value={registryQuery}
+                    onChange={e => setRegistryQuery(e.target.value)}
+                    placeholder="e.g. SHENZHEN RONGHENG OCEAN FISHERY CO.,LTD."
                     className="flex-1 px-3 py-2 rounded-md border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                    onKeyDown={e => e.key === 'Enter' && searchRegistry()}
+                    onKeyDown={e => e.key === 'Enter' && loadGovernmentVessels()}
                   />
                   <button
-                    onClick={searchRegistry}
-                    disabled={registrySearching || !registryCompanyId.trim()}
+                    onClick={loadGovernmentVessels}
+                    disabled={registryLoading}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {registrySearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                    {registryLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                     Search
                   </button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Source: WCPFC Record of Fishing Vessels (government/intergovernmental registry).
+                </p>
+                {registryError && <p className="text-[11px] text-destructive">{registryError}</p>}
+                {!registryError && registryLastImported > 0 && (
+                  <p className="text-[11px] text-success flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Imported {registryLastImported} vessel{registryLastImported > 1 ? 's' : ''} to your fleet.
+                  </p>
+                )}
 
                 {registrySearching && (
                   <div className="flex items-center gap-2 py-3 justify-center text-muted-foreground">
