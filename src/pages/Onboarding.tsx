@@ -95,12 +95,7 @@ const AI_RECOMMENDED_SOURCES: Record<string, { id: string; label: string; desc: 
   ],
 };
 
-const MOCK_REGISTRY_VESSELS = [
-  { id: 'REG-001', name: 'FV Southern Cross', imo: '9234567', flag: '🇳🇿', type: 'Longline', registered: '2019' },
-  { id: 'REG-002', name: 'MV Pacific Star', imo: '9345678', flag: '🇫🇯', type: 'Purse Seine', registered: '2021' },
-  { id: 'REG-003', name: 'FV Ocean Venture', imo: '9456789', flag: '🇦🇺', type: 'Trawl', registered: '2018' },
-  { id: 'REG-004', name: 'RV Coral Explorer', imo: '9567890', flag: '🇵🇬', type: 'Pole & Line', registered: '2022' },
-];
+type RegistryLookupResult = GovernmentVesselRecord;
 
 const ALERT_CATEGORIES = [
   { id: 'quota', label: 'Quota Changes', icon: '📊' },
@@ -161,9 +156,8 @@ const Onboarding = () => {
       ? savedData.vessels.map(v => ({ ...v, trackingTag: v.trackingTag ?? '' }))
       : [{ name: '', zone: '', species: '', gear: '', trackingTag: '' }],
   );
-  const [registryCompanyId, setRegistryCompanyId] = useState('');
-  const [registrySearching, setRegistrySearching] = useState(false);
-  const [registryResults, setRegistryResults] = useState<typeof MOCK_REGISTRY_VESSELS | null>(null);
+  const [registryResults, setRegistryResults] = useState<RegistryLookupResult[]>([]);
+  const [registrySearchedFor, setRegistrySearchedFor] = useState('');
   const [selectedRegistryVessels, setSelectedRegistryVessels] = useState<Set<string>>(new Set());
   const [registrySubscribed, setRegistrySubscribed] = useState(false);
 
@@ -224,54 +218,33 @@ const Onboarding = () => {
 
     setRegistryLoading(true);
     setRegistryError('');
+    setRegistryLastImported(0);
 
     try {
       const results = await fetchWcpfcVesselsByCompanyOrRegistration(query);
+      setRegistrySearchedFor(query);
+
       if (!results.length) {
+        setRegistryResults([]);
+        setSelectedRegistryVessels(new Set());
         setRegistryError('No registered vessels found for that company/registration ID.');
-        setRegistryLastImported(0);
         return;
       }
 
-      const importedVessels: OnboardingVessel[] = results.map((record: GovernmentVesselRecord) => ({
-        name: record.name,
-        zone: '',
-        species: '',
-        gear: mapGovernmentGear(record.vesselType),
-        trackingTag: '',
-        source: 'government',
-        registrationNumber: record.registrationNumber,
-        ownerName: record.ownerName,
-        imo: record.imo,
-        ircs: record.ircs,
-        win: record.win,
-        sourceUrl: record.sourceUrl,
-      }));
-
-      setVessels(importedVessels);
-      setRegistryLastImported(importedVessels.length);
-      
+      setRegistryResults(results);
+      setSelectedRegistryVessels(new Set());
 
       if (!orgName.trim()) {
         const owner = results.find(r => r.ownerName)?.ownerName;
         if (owner) setOrgName(owner);
       }
     } catch {
+      setRegistryResults([]);
+      setSelectedRegistryVessels(new Set());
       setRegistryError('Government registry lookup failed. Please try again in a minute.');
-      setRegistryLastImported(0);
     } finally {
       setRegistryLoading(false);
     }
-  };
-
-  const searchRegistry = () => {
-    if (!registryCompanyId.trim()) return;
-    setRegistrySearching(true);
-    setRegistryResults(null);
-    setTimeout(() => {
-      setRegistryResults(MOCK_REGISTRY_VESSELS);
-      setRegistrySearching(false);
-    }, 1500);
   };
 
   const toggleRegistryVessel = (id: string) => {
@@ -283,22 +256,36 @@ const Onboarding = () => {
   };
 
   const addRegistryVessels = () => {
-    if (!registryResults) return;
-    const toAdd = registryResults.filter(v => selectedRegistryVessels.has(v.id));
-    const newVessels: OnboardingVessel[] = toAdd.map(v => ({
+    if (!registryResults.length || selectedRegistryVessels.size === 0) return;
+
+    const selectedRows = registryResults.filter(v => selectedRegistryVessels.has(v.vid));
+    const newVessels: OnboardingVessel[] = selectedRows.map(v => ({
       name: v.name,
       zone: '',
       species: '',
-      gear: v.type,
+      gear: mapGovernmentGear(v.vesselType),
       trackingTag: '',
+      source: 'government',
+      registrationNumber: v.registrationNumber,
+      ownerName: v.ownerName,
+      imo: v.imo,
+      ircs: v.ircs,
+      win: v.win,
+      sourceUrl: v.sourceUrl,
     }));
+
     setVessels(p => {
       const cleaned = p.filter(v => v.name.trim());
       return cleaned.length > 0 ? [...cleaned, ...newVessels] : newVessels;
     });
+
+    setRegistryLastImported(newVessels.length);
     setSelectedRegistryVessels(new Set());
-    setRegistryResults(null);
-    setRegistryCompanyId('');
+
+    if (!orgName.trim()) {
+      const owner = selectedRows.find(v => v.ownerName)?.ownerName;
+      if (owner) setOrgName(owner);
+    }
   };
 
   const filledVessels = vessels.filter(v => v.name.trim());
@@ -482,25 +469,25 @@ const Onboarding = () => {
                   </p>
                 )}
 
-                {registrySearching && (
+                {registryLoading && (
                   <div className="flex items-center gap-2 py-3 justify-center text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-xs font-mono">Querying national registries…</span>
                   </div>
                 )}
 
-                {registryResults && (
+                {registryResults.length > 0 && (
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-mono uppercase text-muted-foreground">
-                        {registryResults.length} vessels found for "{registryCompanyId}"
+                        {registryResults.length} vessels found for "{registrySearchedFor || registryQuery.trim()}"
                       </p>
                       <button
                         onClick={() => {
                           if (selectedRegistryVessels.size === registryResults.length) {
                             setSelectedRegistryVessels(new Set());
                           } else {
-                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.id)));
+                            setSelectedRegistryVessels(new Set(registryResults.map(v => v.vid)));
                           }
                         }}
                         className="text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
@@ -508,29 +495,49 @@ const Onboarding = () => {
                         {selectedRegistryVessels.size === registryResults.length ? 'Deselect All' : 'Select All'}
                       </button>
                     </div>
-                    {registryResults.map(rv => {
-                      const selected = selectedRegistryVessels.has(rv.id);
+
+                    {registryResults.map(result => {
+                      const selected = selectedRegistryVessels.has(result.vid);
                       return (
                         <button
-                          key={rv.id}
-                          onClick={() => toggleRegistryVessel(rv.id)}
-                          className={`w-full flex items-center gap-3 p-2.5 rounded-md border text-left transition-all ${
+                          key={result.vid}
+                          onClick={() => toggleRegistryVessel(result.vid)}
+                          className={`w-full rounded-lg border p-3 text-left transition-all ${
                             selected ? 'border-primary/50 bg-primary/10' : 'border-border bg-secondary/10 hover:bg-secondary/20'
                           }`}
                         >
-                          <div className={`h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 ${
-                            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
-                          }`}>
-                            {selected && <Check className="h-3 w-3" />}
-                          </div>
-                          <span className="text-sm">{rv.flag}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate">{rv.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">IMO {rv.imo} · {rv.type} · Reg. {rv.registered}</p>
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 h-5 w-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                              selected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/30'
+                            }`}>
+                              {selected && <Check className="h-3 w-3" />}
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-xs font-semibold text-foreground truncate">{result.name}</p>
+                                <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">VID {result.vid}</span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                Owner: {result.ownerName || '—'}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">Reg {result.registrationNumber || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">IMO {result.imo || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">IRCS {result.ircs || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">WIN {result.win || '—'}</span>
+                                <span className="px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">Type {result.vesselType || '—'}</span>
+                              </div>
+                              {result.sourceUrl && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-primary">
+                                  <Link2 className="h-2.5 w-2.5" /> Government source available
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       );
                     })}
+
                     {selectedRegistryVessels.size > 0 && (
                       <button
                         onClick={addRegistryVessels}
@@ -541,7 +548,6 @@ const Onboarding = () => {
                       </button>
                     )}
 
-                    {/* Subscribe to registry */}
                     <div className={`flex items-center gap-3 rounded-lg border p-3 transition-all ${
                       registrySubscribed ? 'border-success/40 bg-success/5' : 'border-border bg-secondary/10'
                     }`}>
