@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
+import { MOCK_RESEARCH_REQUESTS } from '@/data/researchData';
 import { DashboardView } from '@/components/DashboardView';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
 import { CommPanel } from '@/components/CommPanel';
 import { CommunityPanel } from '@/components/CommunityPanel';
-import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, Users, User, Settings, LogOut } from 'lucide-react';
+import { RequestsPanel } from '@/components/RequestsPanel';
+import { Anchor, Bell, Map, LayoutDashboard, MessageSquare, Radio, Users, User, Settings, LogOut, Microscope, Inbox } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm' | 'community' | 'requests'>('map');
+  const pendingRequests = MOCK_RESEARCH_REQUESTS.filter(r => r.status === 'pending').length;
 
   const actionCount = MOCK_ALERTS.filter((a) => a.status === 'action_required').length;
 
@@ -30,15 +33,22 @@ const Index = () => {
               </h1>
               <p className="text-[9px] font-mono text-muted-foreground tracking-wider">FISHERIES COMPLIANCE INTELLIGENCE</p>
             </div>
+            <button
+              onClick={() => navigate('/research')}
+              className="flex items-center gap-1.5 ml-3 px-2.5 py-1 rounded-md bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-colors"
+            >
+              <Microscope className="h-3 w-3" />
+              <span className="text-[10px] font-mono font-bold">Research Portal</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center rounded-md border border-border bg-secondary/30 p-0.5">
-              {(['map', 'dashboard', 'chat', 'comm', 'community'] as const).map(v => {
-                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio, community: Users };
-                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm', community: 'Community' };
-                
+              {(['map', 'dashboard', 'chat', 'comm', 'community', 'requests'] as const).map(v => {
+                const icons = { map: Map, dashboard: LayoutDashboard, chat: MessageSquare, comm: Radio, community: Users, requests: Inbox };
+                const labels = { map: 'Map', dashboard: 'Dashboard', chat: 'Chat', comm: 'Comm', community: 'Community', requests: 'Requests' };
+                const hasBadge = v === 'requests' && pendingRequests > 0;
                 const Icon = icons[v];
                 return (
                   <button
@@ -50,6 +60,9 @@ const Index = () => {
                   >
                     <Icon className="h-3 w-3" />
                     {labels[v]}
+                    {hasBadge && (
+                      <span className="flex items-center justify-center h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold">{pendingRequests}</span>
+                    )}
                   </button>
                 );
               })}
@@ -103,6 +116,10 @@ const Index = () => {
       ) : view === 'community' ? (
         <div className="flex-1 overflow-hidden">
           <CommunityPanel />
+        </div>
+      ) : view === 'requests' ? (
+        <div className="flex-1 overflow-hidden">
+          <RequestsPanel />
         </div>
       ) : (
         <DashboardView onSwitchToMap={() => setView('map')} />
