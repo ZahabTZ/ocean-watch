@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_ALERTS, MOCK_VESSELS } from '@/data/mockData';
 import { StatusCard } from '@/components/StatusCard';
 import { AlertCard } from '@/components/AlertCard';
@@ -8,10 +9,12 @@ import { SourcesGrid } from '@/components/SourcesGrid';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
 import { CommPanel } from '@/components/CommPanel';
-import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare, Radio } from 'lucide-react';
+import { Anchor, Bell, ChevronLeft, Map, LayoutDashboard, MessageSquare, Radio, User, Settings, LogOut } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(MOCK_ALERTS[0].id);
   const [view, setView] = useState<'map' | 'dashboard' | 'chat' | 'comm'>('map');
   const selectedAlert = MOCK_ALERTS.find((a) => a.id === selectedAlertId);
@@ -86,6 +89,26 @@ const Index = () => {
             <div className="text-[10px] font-mono text-muted-foreground hidden sm:block">
               {new Date().toUTCString().slice(0, -4)} UTC
             </div>
+
+            {/* Profile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="h-8 w-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-primary hover:bg-primary/25 transition-colors">
+                  <User className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                <DropdownMenuItem onClick={() => navigate('/onboarding')} className="cursor-pointer text-xs gap-2">
+                  <Settings className="h-3.5 w-3.5" />
+                  Setup & Configuration
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer text-xs gap-2 text-muted-foreground">
+                  <LogOut className="h-3.5 w-3.5" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
