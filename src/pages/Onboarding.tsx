@@ -1,127 +1,132 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Anchor, ChevronRight, ChevronLeft, Check, Ship, Globe2, Rss, Twitter, Mail,
   FileText, Plus, X, Wifi, Database, Bell, Smartphone, MessageSquare, Zap,
-  MapPin, Fish, Shield, ArrowRight, Sparkles, Radio,
+  MapPin, Fish, User, Building2, ArrowRight, Sparkles, Upload, Clock,
+  CalendarDays, AlertTriangle,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 
-// ─── Types ───
-type Step = 'welcome' | 'fleet' | 'zones' | 'sources' | 'channels' | 'launch';
-
-const STEPS: { id: Step; label: string; icon: React.ReactNode }[] = [
-  { id: 'welcome', label: 'Welcome', icon: <Anchor className="h-4 w-4" /> },
-  { id: 'fleet', label: 'Fleet', icon: <Ship className="h-4 w-4" /> },
-  { id: 'zones', label: 'Zones & Species', icon: <Globe2 className="h-4 w-4" /> },
-  { id: 'sources', label: 'Data Sources', icon: <Database className="h-4 w-4" /> },
-  { id: 'channels', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
-  { id: 'launch', label: 'Launch', icon: <Zap className="h-4 w-4" /> },
+const STEPS = [
+  { num: 1, label: 'Profile', icon: <User className="h-4 w-4" /> },
+  { num: 2, label: 'Fleet', icon: <Ship className="h-4 w-4" /> },
+  { num: 3, label: 'Sources', icon: <Database className="h-4 w-4" /> },
+  { num: 4, label: 'Alerts', icon: <Bell className="h-4 w-4" /> },
+  { num: 5, label: 'Launch', icon: <Zap className="h-4 w-4" /> },
 ];
 
-// ─── Predefined options ───
-const RFMO_ZONES = [
-  { id: 'iattc', label: 'IATTC', region: 'Eastern Pacific', zones: ['EPO-1', 'EPO-2', 'EPO-3'] },
-  { id: 'iotc', label: 'IOTC', region: 'Indian Ocean', zones: ['IO-1', 'IO-2', 'IO-3', 'IO-4'] },
-  { id: 'wcpfc', label: 'WCPFC', region: 'Western & Central Pacific', zones: ['WCPO High Seas', 'WCPO-1'] },
-  { id: 'iccat', label: 'ICCAT', region: 'Atlantic Ocean', zones: ['NA-1', 'NA-2', 'SA-1'] },
-  { id: 'ccamlr', label: 'CCAMLR', region: 'Southern Ocean', zones: ['Area 48.1', 'Area 48.2', 'Area 58'] },
-  { id: 'sprfmo', label: 'SPRFMO', region: 'South Pacific', zones: ['SP-1', 'SP-2'] },
-  { id: 'nafo', label: 'NAFO', region: 'NW Atlantic', zones: ['3L', '3M', '3NO'] },
-  { id: 'npfc', label: 'NPFC', region: 'North Pacific', zones: ['NP-1', 'NP-2'] },
+const ROLES = [
+  { id: 'manager', label: 'Fisheries Manager', desc: 'Managing vessel operations & compliance', icon: <Ship className="h-5 w-5" /> },
+  { id: 'regulator', label: 'Regulator', desc: 'Monitoring & enforcing regulations', icon: <AlertTriangle className="h-5 w-5" /> },
+  { id: 'researcher', label: 'Researcher', desc: 'Analyzing fisheries data & trends', icon: <Globe2 className="h-5 w-5" /> },
+];
+
+const REGIONS = [
+  { id: 'pacific', label: 'Pacific Ocean', rfmos: ['IATTC', 'WCPFC', 'SPRFMO', 'NPFC'] },
+  { id: 'atlantic', label: 'Atlantic Ocean', rfmos: ['ICCAT', 'NAFO'] },
+  { id: 'indian', label: 'Indian Ocean', rfmos: ['IOTC'] },
+  { id: 'southern', label: 'Southern Ocean', rfmos: ['CCAMLR'] },
+  { id: 'multi', label: 'Multiple Regions', rfmos: ['IATTC', 'WCPFC', 'IOTC', 'ICCAT', 'CCAMLR', 'SPRFMO', 'NAFO', 'NPFC'] },
 ];
 
 const SPECIES_LIST = [
   'Bigeye Tuna', 'Yellowfin Tuna', 'Skipjack Tuna', 'Albacore', 'Bluefin Tuna',
-  'Swordfish', 'Blue Marlin', 'Antarctic Krill', 'Patagonian Toothfish', 'Orange Roughy',
-  'Pacific Saury', 'Squid', 'Mackerel',
+  'Swordfish', 'Blue Marlin', 'Antarctic Krill', 'Patagonian Toothfish',
+  'Pacific Saury', 'Squid', 'Mackerel', 'Orange Roughy',
 ];
+
+const GEAR_TYPES = ['Purse Seine', 'Longline', 'Trawl', 'Pole & Line', 'Gillnet', 'Trap'];
+
+const ZONE_MAP: Record<string, string[]> = {
+  IATTC: ['EPO-1', 'EPO-2', 'EPO-3'],
+  WCPFC: ['WCPO High Seas', 'WCPO-1'],
+  IOTC: ['IO-1', 'IO-2', 'IO-3', 'IO-4'],
+  ICCAT: ['NA-1', 'NA-2', 'SA-1'],
+  CCAMLR: ['Area 48.1', 'Area 48.2', 'Area 58'],
+  SPRFMO: ['SP-1', 'SP-2'],
+  NAFO: ['3L', '3M', '3NO'],
+  NPFC: ['NP-1', 'NP-2'],
+};
 
 const SOURCE_TYPES = [
-  { id: 'rfmo_crawl', label: 'RFMO Website Crawler', icon: <Globe2 className="h-5 w-5" />, desc: 'Auto-crawl official RFMO websites for new resolutions, circulars, and updates', pre: true },
-  { id: 'rss', label: 'RSS / Atom Feeds', icon: <Rss className="h-5 w-5" />, desc: 'Subscribe to RSS feeds from regulatory bodies, news outlets, or custom sources' },
-  { id: 'email', label: 'Email Forwarding', icon: <Mail className="h-5 w-5" />, desc: 'Forward regulatory emails to your MAREWATCH inbox for automatic parsing' },
-  { id: 'twitter', label: 'X / Twitter Accounts', icon: <Twitter className="h-5 w-5" />, desc: 'Monitor official RFMO and regulatory accounts for announcements' },
-  { id: 'pdf_upload', label: 'PDF / Document Upload', icon: <FileText className="h-5 w-5" />, desc: 'Upload regulatory PDFs, circulars, and documents for AI extraction' },
-  { id: 'api', label: 'Custom API', icon: <Wifi className="h-5 w-5" />, desc: 'Connect any REST/JSON API endpoint that publishes regulatory data' },
+  { id: 'rfmo', label: 'RFMO Official Feeds', icon: <Globe2 className="h-5 w-5" />, desc: 'Auto-added based on your region', auto: true },
+  { id: 'rss', label: 'RSS / Atom Feeds', icon: <Rss className="h-5 w-5" />, desc: 'Paste any regulatory feed URL' },
+  { id: 'email', label: 'Email Forwarding', icon: <Mail className="h-5 w-5" />, desc: 'Forward updates to your unique inbox' },
+  { id: 'twitter', label: 'X / Twitter Accounts', icon: <Twitter className="h-5 w-5" />, desc: 'Monitor @IOTC_Secretariat etc' },
+  { id: 'gov', label: 'Government Portals', icon: <Building2 className="h-5 w-5" />, desc: 'URL monitoring for regulatory sites' },
+  { id: 'upload', label: 'Custom Upload', icon: <Upload className="h-5 w-5" />, desc: 'Drop a PDF anytime for AI extraction' },
 ];
 
-// ─── Component ───
+const ALERT_CATEGORIES = [
+  { id: 'quota', label: 'Quota Changes', icon: '📊' },
+  { id: 'closure', label: 'Area Closures', icon: '🚫' },
+  { id: 'reporting', label: 'Reporting Requirements', icon: '📋' },
+  { id: 'species', label: 'Species Protections', icon: '🐟' },
+  { id: 'penalties', label: 'Penalty Updates', icon: '⚠️' },
+];
+
+const URGENCY_OPTIONS = [
+  { id: 'immediate', label: 'Immediate', desc: 'Real-time push for critical alerts', icon: <Zap className="h-4 w-4" /> },
+  { id: 'daily', label: 'Daily Digest', desc: 'Morning summary of all changes', icon: <CalendarDays className="h-4 w-4" /> },
+  { id: 'weekly', label: 'Weekly Summary', desc: 'End-of-week compliance report', icon: <Clock className="h-4 w-4" /> },
+];
+
 const Onboarding = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<Step>('welcome');
+  const [step, setStep] = useState(1);
 
-  // Fleet state
+  // Step 1
+  const [role, setRole] = useState('');
   const [orgName, setOrgName] = useState('');
-  const [vessels, setVessels] = useState<{ name: string; flag: string }[]>([
-    { name: '', flag: '' },
+  const [region, setRegion] = useState('');
+
+  // Step 2
+  const [vessels, setVessels] = useState<{ name: string; zone: string; species: string; gear: string }[]>([
+    { name: '', zone: '', species: '', gear: '' },
   ]);
 
-  // Zones & species
-  const [selectedRfmos, setSelectedRfmos] = useState<string[]>([]);
-  const [selectedZones, setSelectedZones] = useState<string[]>([]);
-  const [selectedSpecies, setSelectedSpecies] = useState<string[]>([]);
-
-  // Sources
-  const [enabledSources, setEnabledSources] = useState<string[]>(['rfmo_crawl']);
-  const [rssFeedUrl, setRssFeedUrl] = useState('');
+  // Step 3
+  const [enabledSources, setEnabledSources] = useState<string[]>(['rfmo']);
   const [rssFeeds, setRssFeeds] = useState<string[]>([]);
+  const [rssFeedUrl, setRssFeedUrl] = useState('');
   const [twitterHandles, setTwitterHandles] = useState<string[]>([]);
   const [twitterInput, setTwitterInput] = useState('');
-  const [emailForward, setEmailForward] = useState('');
-  const [apiEndpoint, setApiEndpoint] = useState('');
+  const [govUrls, setGovUrls] = useState<string[]>([]);
+  const [govInput, setGovInput] = useState('');
 
-  // Channels
+  // Step 4
+  const [alertCategories, setAlertCategories] = useState<string[]>(['quota', 'closure', 'reporting', 'species', 'penalties']);
   const [channels, setChannels] = useState({ email: true, sms: false, whatsapp: false, push: true });
+  const [urgency, setUrgency] = useState('immediate');
 
-  const stepIndex = STEPS.findIndex(s => s.id === currentStep);
-  const progress = ((stepIndex) / (STEPS.length - 1)) * 100;
+  const progress = (step / STEPS.length) * 100;
+  const selectedRegion = REGIONS.find(r => r.id === region);
+  const recommendedRfmos = selectedRegion?.rfmos || [];
+  const availableZones = recommendedRfmos.flatMap(r => ZONE_MAP[r] || []);
 
-  const next = () => {
-    const i = STEPS.findIndex(s => s.id === currentStep);
-    if (i < STEPS.length - 1) setCurrentStep(STEPS[i + 1].id);
-  };
-  const prev = () => {
-    const i = STEPS.findIndex(s => s.id === currentStep);
-    if (i > 0) setCurrentStep(STEPS[i - 1].id);
-  };
+  const next = () => step < 5 && setStep(step + 1);
+  const prev = () => step > 1 && setStep(step - 1);
 
-  const toggleRfmo = (id: string) => {
-    setSelectedRfmos(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
-    // Auto-select zones
-    const rfmo = RFMO_ZONES.find(r => r.id === id);
-    if (rfmo && !selectedRfmos.includes(id)) {
-      setSelectedZones(prev => [...new Set([...prev, ...rfmo.zones])]);
-    }
-  };
+  const addVessel = () => setVessels(p => [...p, { name: '', zone: '', species: '', gear: '' }]);
+  const removeVessel = (i: number) => setVessels(p => p.filter((_, idx) => idx !== i));
+  const updateVessel = (i: number, field: string, value: string) =>
+    setVessels(p => p.map((v, idx) => idx === i ? { ...v, [field]: value } : v));
 
-  const toggleZone = (z: string) => setSelectedZones(prev => prev.includes(z) ? prev.filter(x => x !== z) : [...prev, z]);
-  const toggleSpecies = (s: string) => setSelectedSpecies(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-  const toggleSource = (id: string) => setEnabledSources(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSource = (id: string) => setEnabledSources(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleCategory = (id: string) => setAlertCategories(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
-  const addVessel = () => setVessels(prev => [...prev, { name: '', flag: '' }]);
-  const removeVessel = (i: number) => setVessels(prev => prev.filter((_, idx) => idx !== i));
-  const updateVessel = (i: number, field: 'name' | 'flag', value: string) => {
-    setVessels(prev => prev.map((v, idx) => idx === i ? { ...v, [field]: value } : v));
+  const addItem = (value: string, setter: React.Dispatch<React.SetStateAction<string[]>>, inputSetter: React.Dispatch<React.SetStateAction<string>>) => {
+    if (value.trim()) { setter(p => [...p, value.trim()]); inputSetter(''); }
   };
+  const removeItem = (i: number, setter: React.Dispatch<React.SetStateAction<string[]>>) => setter(p => p.filter((_, idx) => idx !== i));
 
-  const addRssFeed = () => {
-    if (rssFeedUrl.trim()) {
-      setRssFeeds(prev => [...prev, rssFeedUrl.trim()]);
-      setRssFeedUrl('');
-    }
-  };
-  const addTwitter = () => {
-    if (twitterInput.trim()) {
-      setTwitterHandles(prev => [...prev, twitterInput.trim().replace(/^@/, '')]);
-      setTwitterInput('');
-    }
-  };
+  const filledVessels = vessels.filter(v => v.name.trim());
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Top bar */}
+      {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
@@ -133,101 +138,72 @@ const Onboarding = () => {
               <span className="text-muted-foreground font-normal ml-2 text-xs">Setup</span>
             </h1>
           </div>
-          {currentStep !== 'welcome' && currentStep !== 'launch' && (
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-muted-foreground">
-                Step {stepIndex} of {STEPS.length - 2}
-              </span>
-              <Progress value={progress} className="w-32 h-1.5 bg-secondary/30" />
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-mono text-muted-foreground">Step {step} of 5</span>
+            <Progress value={progress} className="w-32 h-1.5 bg-secondary/30" />
+          </div>
         </div>
       </header>
 
-      {/* Step indicators */}
-      {currentStep !== 'welcome' && currentStep !== 'launch' && (
-        <div className="border-b border-border bg-card/40 px-6 py-2 flex-shrink-0">
-          <div className="flex items-center gap-1 max-w-3xl mx-auto">
-            {STEPS.filter(s => s.id !== 'welcome' && s.id !== 'launch').map((s, i) => {
-              const si = STEPS.findIndex(st => st.id === s.id);
-              const isActive = si === stepIndex;
-              const isDone = si < stepIndex;
-              return (
-                <div key={s.id} className="flex items-center flex-1">
-                  <button
-                    onClick={() => si <= stepIndex && setCurrentStep(s.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-mono transition-all ${
-                      isActive
-                        ? 'text-primary bg-primary/10'
-                        : isDone
-                          ? 'text-success cursor-pointer hover:bg-success/10'
-                          : 'text-muted-foreground/40'
-                    }`}
-                  >
-                    {isDone ? <Check className="h-3 w-3" /> : s.icon}
-                    <span className="hidden sm:inline">{s.label}</span>
-                  </button>
-                  {i < 3 && <div className={`flex-1 h-px mx-1 ${isDone ? 'bg-success/40' : 'bg-border'}`} />}
-                </div>
-              );
-            })}
-          </div>
+      {/* Step Bar */}
+      <div className="border-b border-border bg-card/40 px-6 py-2 flex-shrink-0">
+        <div className="flex items-center gap-1 max-w-2xl mx-auto">
+          {STEPS.map((s, i) => {
+            const isActive = s.num === step;
+            const isDone = s.num < step;
+            return (
+              <div key={s.num} className="flex items-center flex-1">
+                <button
+                  onClick={() => s.num <= step && setStep(s.num)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-mono transition-all ${
+                    isActive ? 'text-primary bg-primary/10' : isDone ? 'text-success cursor-pointer hover:bg-success/10' : 'text-muted-foreground/40'
+                  }`}
+                >
+                  {isDone ? <Check className="h-3 w-3" /> : s.icon}
+                  <span className="hidden sm:inline">{s.label}</span>
+                </button>
+                {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-1 ${isDone ? 'bg-success/40' : 'bg-border'}`} />}
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto px-6 py-8">
 
-          {/* ─── Welcome ─── */}
-          {currentStep === 'welcome' && (
-            <div className="text-center space-y-8 py-12">
-              <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-primary/10 border border-primary/20 mx-auto">
-                <Anchor className="h-10 w-10 text-primary" />
-              </div>
-              <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-foreground tracking-tight">
-                  Welcome to MARE<span className="text-primary">WATCH</span>
-                </h2>
-                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Let's set up your compliance intelligence system. We'll configure your fleet, zones,
-                  data sources, and notification preferences in just a few minutes.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left">
-                {[
-                  { icon: <Ship className="h-4 w-4" />, text: 'Define your fleet & vessels' },
-                  { icon: <Globe2 className="h-4 w-4" />, text: 'Select zones & species' },
-                  { icon: <Database className="h-4 w-4" />, text: 'Connect data sources' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-3">
-                    <div className="text-primary">{item.icon}</div>
-                    <span className="text-xs text-foreground">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={next}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
-              >
-                Get Started
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {/* ─── Fleet ─── */}
-          {currentStep === 'fleet' && (
+          {/* ── Step 1: Who are you? ── */}
+          {step === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Ship className="h-5 w-5 text-primary" /> Your Fleet
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">Tell us about your organization and vessels.</p>
+                <h2 className="text-xl font-bold text-foreground">Who are you?</h2>
+                <p className="text-sm text-muted-foreground mt-1">We'll customize everything based on your role and region.</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Organization Name</label>
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Your Role</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {ROLES.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setRole(r.id)}
+                      className={`p-4 rounded-lg border text-left transition-all ${
+                        role === r.id
+                          ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20'
+                          : 'border-border bg-card hover:bg-secondary/20'
+                      }`}
+                    >
+                      <div className={`mb-2 ${role === r.id ? 'text-primary' : 'text-muted-foreground'}`}>{r.icon}</div>
+                      <p className={`text-sm font-semibold ${role === r.id ? 'text-primary' : 'text-foreground'}`}>{r.label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{r.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Organization</label>
                 <input
                   value={orgName}
                   onChange={e => setOrgName(e.target.value)}
@@ -236,123 +212,139 @@ const Onboarding = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Region of Operation</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {REGIONS.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => setRegion(r.id)}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        region === r.id ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20' : 'border-border bg-card hover:bg-secondary/20'
+                      }`}
+                    >
+                      <p className={`text-sm font-medium ${region === r.id ? 'text-primary' : 'text-foreground'}`}>{r.label}</p>
+                      <p className="text-[9px] text-muted-foreground mt-0.5 font-mono">{r.rfmos.join(' · ')}</p>
+                    </button>
+                  ))}
+                </div>
+                {region && (
+                  <p className="text-[10px] text-primary/80 flex items-center gap-1 mt-1">
+                    <Check className="h-3 w-3" />
+                    {recommendedRfmos.length} RFMOs will be auto-monitored for your region
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 2: Your Fleet ── */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Ship className="h-5 w-5 text-primary" /> Your Fleet
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Tag each vessel with zone, species, and gear type. We'll use this to filter everything that matters to you.
+                </p>
+              </div>
+
+              {/* CSV hint */}
+              <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-secondary/30 flex items-center justify-center text-muted-foreground flex-shrink-0">
+                  <Upload className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-foreground">Have a vessel list?</p>
+                  <p className="text-[10px] text-muted-foreground">Upload a CSV with columns: name, zone, species, gear type</p>
+                </div>
+                <button className="px-3 py-1.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
+                  Upload CSV
+                </button>
+              </div>
+
+              {/* Vessel cards */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Vessels</label>
+                  <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Vessels ({vessels.length})</label>
                   <button onClick={addVessel} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
                     <Plus className="h-3 w-3" /> Add vessel
                   </button>
                 </div>
+
                 {vessels.map((v, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      value={v.name}
-                      onChange={e => updateVessel(i, 'name', e.target.value)}
-                      placeholder="Vessel name"
-                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                    />
-                    <input
-                      value={v.flag}
-                      onChange={e => updateVessel(i, 'flag', e.target.value)}
-                      placeholder="Flag (e.g. 🇵🇦)"
-                      className="w-28 px-3 py-2 rounded-lg border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                    />
-                    {vessels.length > 1 && (
-                      <button onClick={() => removeVessel(i)} className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                  <div key={i} className="rounded-lg border border-border bg-card p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={v.name}
+                        onChange={e => updateVessel(i, 'name', e.target.value)}
+                        placeholder="Vessel name (e.g. MV Pacific Harvester)"
+                        className="flex-1 px-3 py-2 rounded-md border border-border bg-secondary/20 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
+                      />
+                      {vessels.length > 1 && (
+                        <button onClick={() => removeVessel(i)} className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <select
+                        value={v.zone}
+                        onChange={e => updateVessel(i, 'zone', e.target.value)}
+                        className="px-2 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                      >
+                        <option value="">Zone</option>
+                        {availableZones.map(z => <option key={z} value={z}>{z}</option>)}
+                      </select>
+                      <select
+                        value={v.species}
+                        onChange={e => updateVessel(i, 'species', e.target.value)}
+                        className="px-2 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                      >
+                        <option value="">Species</option>
+                        {SPECIES_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <select
+                        value={v.gear}
+                        onChange={e => updateVessel(i, 'gear', e.target.value)}
+                        className="px-2 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                      >
+                        <option value="">Gear Type</option>
+                        {GEAR_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* ─── Zones & Species ─── */}
-          {currentStep === 'zones' && (
+          {/* ── Step 3: Sources ── */}
+          {step === 3 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" /> Zones & Species
+                  <Database className="h-5 w-5 text-primary" /> Your Sources
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">Select the RFMOs, zones, and species relevant to your fleet. Only matching alerts will be surfaced.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Start with our recommended sources for your region — add or remove anything.
+                </p>
               </div>
 
-              {/* RFMOs */}
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">RFMOs You Operate Under</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {RFMO_ZONES.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => toggleRfmo(r.id)}
-                      className={`p-2.5 rounded-lg border text-left transition-all ${
-                        selectedRfmos.includes(r.id)
-                          ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20'
-                          : 'border-border bg-card hover:border-border hover:bg-secondary/20'
-                      }`}
-                    >
-                      <p className={`text-xs font-bold ${selectedRfmos.includes(r.id) ? 'text-primary' : 'text-foreground'}`}>{r.label}</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">{r.region}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Zones */}
-              {selectedRfmos.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Specific Zones</label>
+              {/* Auto-added RFMO banner */}
+              {recommendedRfmos.length > 0 && (
+                <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+                  <p className="text-xs font-semibold text-success flex items-center gap-1.5 mb-1.5">
+                    <Check className="h-3.5 w-3.5" /> Auto-added for {selectedRegion?.label}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {RFMO_ZONES.filter(r => selectedRfmos.includes(r.id)).flatMap(r => r.zones).map(z => (
-                      <button
-                        key={z}
-                        onClick={() => toggleZone(z)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-mono transition-all ${
-                          selectedZones.includes(z)
-                            ? 'bg-primary/15 text-primary border border-primary/30'
-                            : 'bg-secondary/30 text-muted-foreground border border-transparent hover:border-border'
-                        }`}
-                      >
-                        {z}
-                      </button>
+                    {recommendedRfmos.map(r => (
+                      <span key={r} className="px-2 py-0.5 rounded bg-success/10 text-[10px] font-mono text-success border border-success/20">{r}</span>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Species */}
-              <div className="space-y-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Target Species</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {SPECIES_LIST.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => toggleSpecies(s)}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all ${
-                        selectedSpecies.includes(s)
-                          ? 'bg-primary/15 text-primary border border-primary/30'
-                          : 'bg-secondary/30 text-muted-foreground border border-transparent hover:border-border'
-                      }`}
-                    >
-                      <Fish className="h-3 w-3" />
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Data Sources ─── */}
-          {currentStep === 'sources' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Database className="h-5 w-5 text-primary" /> Data Sources
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">Connect the feeds and sources MAREWATCH should monitor. Toggle on what you use — configure details after setup.</p>
-              </div>
 
               <div className="space-y-3">
                 {SOURCE_TYPES.map(src => {
@@ -365,46 +357,33 @@ const Onboarding = () => {
                         <div className="flex items-start gap-3">
                           <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                             enabled ? 'bg-primary/15 text-primary' : 'bg-secondary/30 text-muted-foreground'
-                          }`}>
-                            {src.icon}
-                          </div>
+                          }`}>{src.icon}</div>
                           <div>
                             <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                               {src.label}
-                              {src.pre && <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/15 text-success font-mono">PRE-CONFIGURED</span>}
+                              {src.auto && <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/15 text-success font-mono">AUTO</span>}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{src.desc}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{src.desc}</p>
                           </div>
                         </div>
-                        <Switch
-                          checked={enabled}
-                          onCheckedChange={() => toggleSource(src.id)}
-                          className="data-[state=checked]:bg-primary flex-shrink-0"
-                        />
+                        <Switch checked={enabled} onCheckedChange={() => toggleSource(src.id)} className="data-[state=checked]:bg-primary flex-shrink-0" />
                       </div>
 
-                      {/* Inline config for enabled sources */}
+                      {/* Inline config */}
                       {enabled && src.id === 'rss' && (
                         <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                           <div className="flex gap-2">
-                            <input
-                              value={rssFeedUrl}
-                              onChange={e => setRssFeedUrl(e.target.value)}
-                              placeholder="https://rfmo.org/feed.xml"
+                            <input value={rssFeedUrl} onChange={e => setRssFeedUrl(e.target.value)} placeholder="https://rfmo.org/feed.xml"
                               className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                              onKeyDown={e => e.key === 'Enter' && addRssFeed()}
-                            />
-                            <button onClick={addRssFeed} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">
-                              Add
-                            </button>
+                              onKeyDown={e => e.key === 'Enter' && addItem(rssFeedUrl, setRssFeeds, setRssFeedUrl)} />
+                            <button onClick={() => addItem(rssFeedUrl, setRssFeeds, setRssFeedUrl)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
                           </div>
                           {rssFeeds.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                               {rssFeeds.map((f, i) => (
                                 <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-                                  <Rss className="h-2.5 w-2.5" />
-                                  {f.length > 40 ? f.slice(0, 40) + '…' : f}
-                                  <button onClick={() => setRssFeeds(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
+                                  <Rss className="h-2.5 w-2.5" />{f.length > 35 ? f.slice(0, 35) + '…' : f}
+                                  <button onClick={() => removeItem(i, setRssFeeds)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
                                 </span>
                               ))}
                             </div>
@@ -415,23 +394,16 @@ const Onboarding = () => {
                       {enabled && src.id === 'twitter' && (
                         <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
                           <div className="flex gap-2">
-                            <input
-                              value={twitterInput}
-                              onChange={e => setTwitterInput(e.target.value)}
-                              placeholder="@IATTC_official"
+                            <input value={twitterInput} onChange={e => setTwitterInput(e.target.value)} placeholder="@IOTC_Secretariat"
                               className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                              onKeyDown={e => e.key === 'Enter' && addTwitter()}
-                            />
-                            <button onClick={addTwitter} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">
-                              Add
-                            </button>
+                              onKeyDown={e => e.key === 'Enter' && addItem(twitterInput.replace(/^@/, ''), setTwitterHandles, setTwitterInput)} />
+                            <button onClick={() => addItem(twitterInput.replace(/^@/, ''), setTwitterHandles, setTwitterInput)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
                           </div>
                           {twitterHandles.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                               {twitterHandles.map((h, i) => (
                                 <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
-                                  @{h}
-                                  <button onClick={() => setTwitterHandles(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
+                                  @{h}<button onClick={() => removeItem(i, setTwitterHandles)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
                                 </span>
                               ))}
                             </div>
@@ -443,20 +415,30 @@ const Onboarding = () => {
                         <div className="mt-3 pt-3 border-t border-border/50">
                           <div className="flex items-center gap-2 p-2.5 rounded-md bg-secondary/20 border border-border/50">
                             <Mail className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-[11px] font-mono text-foreground">ingest-{orgName ? orgName.toLowerCase().replace(/\s+/g, '') : 'yourorg'}@marewatch.io</span>
+                            <span className="text-[11px] font-mono text-foreground">ingest-{orgName ? orgName.toLowerCase().replace(/[^a-z0-9]/g, '') : 'yourorg'}@marewatch.io</span>
                             <span className="text-[9px] text-muted-foreground ml-auto">Forward emails here</span>
                           </div>
                         </div>
                       )}
 
-                      {enabled && src.id === 'api' && (
-                        <div className="mt-3 pt-3 border-t border-border/50">
-                          <input
-                            value={apiEndpoint}
-                            onChange={e => setApiEndpoint(e.target.value)}
-                            placeholder="https://api.example.com/v1/regulations"
-                            className="w-full px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
-                          />
+                      {enabled && src.id === 'gov' && (
+                        <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                          <div className="flex gap-2">
+                            <input value={govInput} onChange={e => setGovInput(e.target.value)} placeholder="https://fisheries.gov.au/regulations"
+                              className="flex-1 px-3 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors"
+                              onKeyDown={e => e.key === 'Enter' && addItem(govInput, setGovUrls, setGovInput)} />
+                            <button onClick={() => addItem(govInput, setGovUrls, setGovInput)} className="px-3 py-1.5 rounded-md bg-primary/15 text-primary text-xs font-medium hover:bg-primary/25 transition-colors">Add</button>
+                          </div>
+                          {govUrls.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {govUrls.map((u, i) => (
+                                <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/30 text-[10px] font-mono text-muted-foreground">
+                                  <Globe2 className="h-2.5 w-2.5" />{u.length > 35 ? u.slice(0, 35) + '…' : u}
+                                  <button onClick={() => removeItem(i, setGovUrls)} className="hover:text-destructive ml-0.5"><X className="h-2.5 w-2.5" /></button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -466,115 +448,160 @@ const Onboarding = () => {
             </div>
           )}
 
-          {/* ─── Channels ─── */}
-          {currentStep === 'channels' && (
+          {/* ── Step 4: Alert Preferences ── */}
+          {step === 4 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" /> Notification Channels
+                  <Bell className="h-5 w-5 text-primary" /> Alert Preferences
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">Choose how you'd like to receive compliance alerts. You can fine-tune per alert category later.</p>
+                <p className="text-sm text-muted-foreground mt-1">What triggers an alert, where, and how urgent.</p>
               </div>
 
-              <div className="space-y-3">
-                {[
-                  { key: 'email' as const, label: 'Email', icon: <Mail className="h-5 w-5" />, desc: 'Detailed digests and critical alert emails' },
-                  { key: 'sms' as const, label: 'SMS', icon: <Smartphone className="h-5 w-5" />, desc: 'Instant text messages for critical & time-sensitive alerts' },
-                  { key: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageSquare className="h-5 w-5" />, desc: 'Rich notifications with images and read receipts' },
-                  { key: 'push' as const, label: 'In-App Push', icon: <Bell className="h-5 w-5" />, desc: 'Real-time notifications inside MAREWATCH' },
-                ].map(ch => (
-                  <div key={ch.key} className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                    channels[ch.key] ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                        channels[ch.key] ? 'bg-primary/15 text-primary' : 'bg-secondary/30 text-muted-foreground'
+              {/* Categories */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">What triggers an alert?</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {ALERT_CATEGORIES.map(c => (
+                    <button key={c.id} onClick={() => toggleCategory(c.id)}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        alertCategories.includes(c.id) ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20' : 'border-border bg-card hover:bg-secondary/20'
                       }`}>
-                        {ch.icon}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{ch.label}</p>
-                        <p className="text-xs text-muted-foreground">{ch.desc}</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={channels[ch.key]}
-                      onCheckedChange={() => setChannels(prev => ({ ...prev, [ch.key]: !prev[ch.key] }))}
-                      className="data-[state=checked]:bg-primary"
-                    />
-                  </div>
-                ))}
+                      <span className="text-lg">{c.icon}</span>
+                      <p className={`text-xs font-medium mt-1 ${alertCategories.includes(c.id) ? 'text-primary' : 'text-foreground'}`}>{c.label}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-                <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Smart Routing Available</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                      After setup, you can configure per-category routing in the <span className="text-primary font-medium">Comm</span> tab — e.g. "Send quota changes to email, closures to SMS immediately."
-                    </p>
-                  </div>
+              {/* Channels */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Where?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: 'email' as const, label: 'Email', icon: <Mail className="h-4 w-4" /> },
+                    { key: 'sms' as const, label: 'SMS', icon: <Smartphone className="h-4 w-4" /> },
+                    { key: 'whatsapp' as const, label: 'WhatsApp', icon: <MessageSquare className="h-4 w-4" /> },
+                    { key: 'push' as const, label: 'In-App Push', icon: <Bell className="h-4 w-4" /> },
+                  ]).map(ch => (
+                    <button key={ch.key} onClick={() => setChannels(p => ({ ...p, [ch.key]: !p[ch.key] }))}
+                      className={`flex items-center gap-2.5 p-3 rounded-lg border transition-all ${
+                        channels[ch.key] ? 'border-primary/50 bg-primary/10' : 'border-border bg-card hover:bg-secondary/20'
+                      }`}>
+                      <div className={channels[ch.key] ? 'text-primary' : 'text-muted-foreground'}>{ch.icon}</div>
+                      <span className={`text-sm font-medium ${channels[ch.key] ? 'text-primary' : 'text-foreground'}`}>{ch.label}</span>
+                      {channels[ch.key] && <Check className="h-3 w-3 text-primary ml-auto" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Urgency */}
+              <div className="space-y-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">How urgent?</label>
+                <div className="space-y-2">
+                  {URGENCY_OPTIONS.map(u => (
+                    <button key={u.id} onClick={() => setUrgency(u.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                        urgency === u.id ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20' : 'border-border bg-card hover:bg-secondary/20'
+                      }`}>
+                      <div className={urgency === u.id ? 'text-primary' : 'text-muted-foreground'}>{u.icon}</div>
+                      <div>
+                        <p className={`text-sm font-medium ${urgency === u.id ? 'text-primary' : 'text-foreground'}`}>{u.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{u.desc}</p>
+                      </div>
+                      {urgency === u.id && <Check className="h-3.5 w-3.5 text-primary ml-auto" />}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ─── Launch ─── */}
-          {currentStep === 'launch' && (
-            <div className="text-center space-y-8 py-12">
-              <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-success/10 border border-success/20 mx-auto">
-                <Sparkles className="h-10 w-10 text-success" />
-              </div>
-              <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-foreground tracking-tight">You're All Set</h2>
-                <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  MAREWATCH is now configured for your fleet. We'll start monitoring your selected sources and send alerts through your chosen channels.
-                </p>
+          {/* ── Step 5: Review & Launch ── */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <div className="text-center space-y-3 py-4">
+                <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-success/10 border border-success/20 mx-auto">
+                  <Sparkles className="h-8 w-8 text-success" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground">Review & Go Live</h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">Here's your setup summary. Everything can be changed later from the Comm tab.</p>
               </div>
 
-              {/* Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-lg mx-auto text-left">
-                {[
-                  { label: 'Vessels', value: vessels.filter(v => v.name.trim()).length || '—' },
-                  { label: 'Zones', value: selectedZones.length || '—' },
-                  { label: 'Species', value: selectedSpecies.length || '—' },
-                  { label: 'Sources', value: enabledSources.length },
-                ].map((item, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-card p-3 text-center">
-                    <p className="text-2xl font-bold text-primary">{item.value}</p>
-                    <p className="text-[10px] font-mono text-muted-foreground uppercase">{item.label}</p>
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Organization</p>
+                  <p className="text-sm font-semibold text-foreground">{orgName || '—'}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{ROLES.find(r => r.id === role)?.label || '—'} · {selectedRegion?.label || '—'}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Fleet</p>
+                  <p className="text-2xl font-bold text-primary">{filledVessels.length}</p>
+                  <p className="text-[10px] text-muted-foreground">vessels configured</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Sources</p>
+                  <p className="text-2xl font-bold text-primary">{enabledSources.length}</p>
+                  <p className="text-[10px] text-muted-foreground">active ingestion channels</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Monitoring</p>
+                  <p className="text-2xl font-bold text-primary">{recommendedRfmos.length}</p>
+                  <p className="text-[10px] text-muted-foreground">RFMOs tracked</p>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Alert Categories</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {alertCategories.map(c => {
+                      const cat = ALERT_CATEGORIES.find(a => a.id === c);
+                      return <span key={c} className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20">{cat?.icon} {cat?.label}</span>;
+                    })}
                   </div>
-                ))}
+                </div>
+                <div>
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Notification Channels</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(channels).filter(([, v]) => v).map(([k]) => (
+                      <span key={k} className="px-2 py-0.5 rounded bg-secondary/40 text-[10px] font-mono text-foreground border border-border capitalize">{k}</span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-mono uppercase text-muted-foreground mb-1">Urgency</p>
+                  <span className="px-2 py-0.5 rounded bg-warning/10 text-[10px] font-mono text-warning border border-warning/20 capitalize">{urgency}</span>
+                </div>
               </div>
 
-              <button
-                onClick={() => navigate('/')}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
-              >
-                Launch MAREWATCH
-                <Zap className="h-4 w-4" />
-              </button>
+              <div className="text-center pt-2">
+                <button onClick={() => navigate('/')}
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors">
+                  Start Monitoring
+                  <Zap className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       {/* Bottom nav */}
-      {currentStep !== 'welcome' && currentStep !== 'launch' && (
+      {step > 0 && step < 5 && (
         <div className="border-t border-border bg-card/80 backdrop-blur-sm px-6 py-3 flex items-center justify-between flex-shrink-0">
-          <button
-            onClick={prev}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={prev} disabled={step === 1}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors ${
+              step === 1 ? 'text-muted-foreground/30 cursor-not-allowed' : 'text-muted-foreground hover:text-foreground'
+            }`}>
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
-          <button
-            onClick={next}
-            className="flex items-center gap-1.5 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
-          >
-            {stepIndex === STEPS.length - 2 ? 'Finish' : 'Continue'}
-            <ChevronRight className="h-4 w-4" />
+          <button onClick={next}
+            className="flex items-center gap-1.5 px-6 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+            Continue <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       )}
