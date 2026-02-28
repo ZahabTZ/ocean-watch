@@ -1,5 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import type { OnboardingData } from '@/lib/onboarding';
 import {
   Anchor, ChevronRight, ChevronLeft, Check, Ship, Globe2, Rss, Twitter, Mail,
   FileText, Plus, X, Wifi, Database, Bell, Smartphone, MessageSquare, Zap,
@@ -75,31 +77,32 @@ const URGENCY_OPTIONS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { data: savedData, saveOnboarding } = useOnboarding();
   const [step, setStep] = useState(1);
 
   // Step 1
-  const [role, setRole] = useState('');
-  const [orgName, setOrgName] = useState('');
-  const [region, setRegion] = useState('');
+  const [role, setRole] = useState(savedData?.role ?? '');
+  const [orgName, setOrgName] = useState(savedData?.orgName ?? '');
+  const [region, setRegion] = useState(savedData?.region ?? '');
 
   // Step 2
-  const [vessels, setVessels] = useState<{ name: string; zone: string; species: string; gear: string }[]>([
-    { name: '', zone: '', species: '', gear: '' },
-  ]);
+  const [vessels, setVessels] = useState<{ name: string; zone: string; species: string; gear: string }[]>(
+    savedData?.vessels?.length ? savedData.vessels : [{ name: '', zone: '', species: '', gear: '' }],
+  );
 
   // Step 3
-  const [enabledSources, setEnabledSources] = useState<string[]>(['rfmo']);
-  const [rssFeeds, setRssFeeds] = useState<string[]>([]);
+  const [enabledSources, setEnabledSources] = useState<string[]>(savedData?.enabledSources ?? ['rfmo']);
+  const [rssFeeds, setRssFeeds] = useState<string[]>(savedData?.rssFeeds ?? []);
   const [rssFeedUrl, setRssFeedUrl] = useState('');
-  const [twitterHandles, setTwitterHandles] = useState<string[]>([]);
+  const [twitterHandles, setTwitterHandles] = useState<string[]>(savedData?.twitterHandles ?? []);
   const [twitterInput, setTwitterInput] = useState('');
-  const [govUrls, setGovUrls] = useState<string[]>([]);
+  const [govUrls, setGovUrls] = useState<string[]>(savedData?.govUrls ?? []);
   const [govInput, setGovInput] = useState('');
 
   // Step 4
-  const [alertCategories, setAlertCategories] = useState<string[]>(['quota', 'closure', 'reporting', 'species', 'penalties']);
-  const [channels, setChannels] = useState({ email: true, sms: false, whatsapp: false, push: true });
-  const [urgency, setUrgency] = useState('immediate');
+  const [alertCategories, setAlertCategories] = useState<string[]>(savedData?.alertCategories ?? ['quota', 'closure', 'reporting', 'species', 'penalties']);
+  const [channels, setChannels] = useState(savedData?.channels ?? { email: true, sms: false, whatsapp: false, push: true });
+  const [urgency, setUrgency] = useState(savedData?.urgency ?? 'immediate');
 
   const progress = (step / STEPS.length) * 100;
   const selectedRegion = REGIONS.find(r => r.id === region);
@@ -579,7 +582,24 @@ const Onboarding = () => {
               </div>
 
               <div className="text-center pt-2">
-                <button onClick={() => navigate('/')}
+                <button onClick={() => {
+                  const onboardingData: OnboardingData = {
+                    role,
+                    orgName,
+                    region,
+                    vessels: vessels.filter(v => v.name.trim()),
+                    enabledSources,
+                    rssFeeds,
+                    twitterHandles,
+                    govUrls,
+                    alertCategories,
+                    channels,
+                    urgency,
+                    completedAt: new Date().toISOString(),
+                  };
+                  saveOnboarding(onboardingData);
+                  navigate('/');
+                }}
                   className="inline-flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors">
                   Start Monitoring
                   <Zap className="h-4 w-4" />
