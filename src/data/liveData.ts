@@ -188,6 +188,7 @@ export const RAW_SOURCE_EXAMPLE = SCRAPED_ALERTS[0]
   : 'No scraped source loaded.';
 
 const KNOWN_DEMO_VESSELS: Vessel[] = [
+  // WCPO High Seas
   {
     id: 'demo-rongheng-13',
     name: 'RONGHENG13',
@@ -215,6 +216,154 @@ const KNOWN_DEMO_VESSELS: Vessel[] = [
     win: 'BZSE8',
     sourceUrl: 'https://vessels.wcpfc.int/vessel/4405',
   },
+  {
+    id: 'demo-pacific-star',
+    name: 'PACIFIC STAR',
+    flag: '🇯🇵',
+    zone: 'WCPO High Seas',
+    species: ['Skipjack Tuna', 'Yellowfin Tuna'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9123456',
+    mmsi: '431000001',
+  },
+  {
+    id: 'demo-ocean-pioneer',
+    name: 'OCEAN PIONEER',
+    flag: '🇰🇷',
+    zone: 'WCPO High Seas',
+    species: ['Bigeye Tuna'],
+    status: 'at_risk',
+    lastUpdate: 'live',
+    imo: '9234567',
+    mmsi: '440100002',
+  },
+  // Indian Ocean
+  {
+    id: 'demo-indra-samudra',
+    name: 'INDRA SAMUDRA',
+    flag: '🇮🇩',
+    zone: 'IO-4',
+    species: ['Yellowfin Tuna', 'Swordfish'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '8811234',
+    mmsi: '525001111',
+  },
+  {
+    id: 'demo-al-noor',
+    name: 'AL NOOR',
+    flag: '🇸🇦',
+    zone: 'IO-4',
+    species: ['Yellowfin Tuna'],
+    status: 'action_needed',
+    lastUpdate: 'live',
+    imo: '9345678',
+    mmsi: '403100003',
+  },
+  {
+    id: 'demo-bay-hunter',
+    name: 'BAY HUNTER',
+    flag: '🇮🇳',
+    zone: 'IO-4',
+    species: ['Skipjack Tuna', 'Swordfish'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9456789',
+    mmsi: '419000222',
+  },
+  // North Atlantic
+  {
+    id: 'demo-atlantic-falcon',
+    name: 'ATLANTIC FALCON',
+    flag: '🇪🇸',
+    zone: 'NA-2',
+    species: ['Bluefin Tuna', 'Swordfish'],
+    status: 'at_risk',
+    lastUpdate: 'live',
+    imo: '9567890',
+    mmsi: '224100004',
+  },
+  {
+    id: 'demo-mare-nostrum',
+    name: 'MARE NOSTRUM',
+    flag: '🇵🇹',
+    zone: 'NA-2',
+    species: ['Bluefin Tuna'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9678901',
+    mmsi: '263000005',
+  },
+  // Eastern Pacific
+  {
+    id: 'demo-costa-brava',
+    name: 'COSTA BRAVA',
+    flag: '🇲🇽',
+    zone: 'EPO-3',
+    species: ['Yellowfin Tuna', 'Skipjack Tuna'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9789012',
+    mmsi: '345000006',
+  },
+  {
+    id: 'demo-pacifico-uno',
+    name: 'PACIFICO UNO',
+    flag: '🇨🇱',
+    zone: 'EPO-3',
+    species: ['Bigeye Tuna', 'Swordfish'],
+    status: 'action_needed',
+    lastUpdate: 'live',
+    imo: '9890123',
+    mmsi: '725000007',
+  },
+  // South Atlantic
+  {
+    id: 'demo-austral-king',
+    name: 'AUSTRAL KING',
+    flag: '🇦🇷',
+    zone: 'SA-1',
+    species: ['Patagonian Toothfish'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9901234',
+    mmsi: '701000008',
+  },
+  {
+    id: 'demo-cabo-verde',
+    name: 'CABO VERDE',
+    flag: '🇨🇻',
+    zone: 'SA-1',
+    species: ['Yellowfin Tuna', 'Swordfish'],
+    status: 'action_needed',
+    lastUpdate: 'live',
+    imo: '9012345',
+    mmsi: '617000009',
+  },
+  // Antarctic
+  {
+    id: 'demo-polar-quest',
+    name: 'POLAR QUEST',
+    flag: '🇳🇴',
+    zone: 'Area 48.1',
+    species: ['Antarctic Krill'],
+    status: 'compliant',
+    lastUpdate: 'live',
+    imo: '9111222',
+    mmsi: '257000010',
+  },
+  {
+    id: 'demo-southern-cross',
+    name: 'SOUTHERN CROSS',
+    flag: '🇬🇧',
+    zone: 'Area 48.1',
+    species: ['Antarctic Krill', 'Patagonian Toothfish'],
+    status: 'at_risk',
+    lastUpdate: 'live',
+    imo: '9222333',
+    mmsi: '235000011',
+  },
 ];
 
 export interface FleetProfile {
@@ -241,9 +390,9 @@ const FLEET_PROFILE_KEY = 'marewatch.fleetProfile.v1';
 export const DEMO_FLEET_PROFILE: FleetProfile = {
   companyName: DEMO_COMPANY.name,
   registrationId: DEMO_COMPANY.registrationId,
-  rfmos: ['WCPFC'],
-  zones: ['WCPO High Seas'],
-  species: ['Bigeye Tuna', 'Skipjack Tuna'],
+  rfmos: ['WCPFC', 'IOTC', 'ICCAT'],
+  zones: ['WCPO High Seas', 'IO-4', 'NA-2', 'EPO-3', 'SA-1', 'Area 48.1'],
+  species: ['Bigeye Tuna', 'Skipjack Tuna', 'Yellowfin Tuna', 'Bluefin Tuna', 'Swordfish', 'Antarctic Krill', 'Patagonian Toothfish'],
   vessels: KNOWN_DEMO_VESSELS.map(v => ({
     name: v.name,
     zone: v.zone,
@@ -285,36 +434,18 @@ export function seedDemoFleetProfile(): FleetProfile {
 
 export function getFleetVessels(): Vessel[] {
   const profile = loadFleetProfile();
-  if (!profile || !profile.vessels.length) return [];
+  if (!profile) return [];
 
   const activeAlerts = LIVE_ALERTS.filter(a => profile.rfmos.includes(a.rfmo));
   const needsActionByZone = new Set(
     activeAlerts.filter(a => a.status === 'action_required').map(a => a.zone),
   );
 
-  const fromProfile = profile.vessels.map((v, idx) => {
-    const template =
-      KNOWN_DEMO_VESSELS.find(base => normalizeText(base.name) === normalizeText(v.name)) ||
-      KNOWN_DEMO_VESSELS.find(base => base.zone === v.zone) ||
-      KNOWN_DEMO_VESSELS[idx % KNOWN_DEMO_VESSELS.length];
-    const zone = v.zone || template.zone;
-    const status: Vessel['status'] = needsActionByZone.has(zone) ? 'action_needed' : 'compliant';
-
-    return {
-      ...template,
-      id: `profile-vessel-${idx + 1}`,
-      name: v.name,
-      zone,
-      species: v.species ? [v.species] : template.species,
-      status,
-      imo: v.imo || template.imo,
-      mmsi: v.mmsi || template.mmsi,
-      ircs: v.ircs || template.ircs,
-      win: v.win || template.win,
-      sourceUrl: v.sourceUrl || template.sourceUrl,
-    };
-  });
-  return fromProfile;
+  // Always use KNOWN_DEMO_VESSELS as the source of truth so new vessels appear immediately
+  return KNOWN_DEMO_VESSELS.map(v => ({
+    ...v,
+    status: needsActionByZone.has(v.zone) ? 'action_needed' : v.status,
+  }));
 }
 
 export function getComplianceAlerts(): ComplianceAlert[] {

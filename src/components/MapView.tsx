@@ -229,17 +229,19 @@ export function MapView() {
     if (!map || !vesselLayer) return;
 
     vesselLayer.clearLayers();
-    const gfwVessels = vessels.filter(vessel => vessel.positionSource === 'gfw' && vessel.position);
-    gfwVessels.forEach(vessel => {
+    const positionedVessels = vessels.filter(vessel => vessel.position);
+    positionedVessels.forEach(vessel => {
       const color = VESSEL_COLORS[vessel.status];
       const timestampText = vessel.positionTimestamp ? `<br/>Pos Time: ${new Date(vessel.positionTimestamp).toISOString()}` : '';
-      const sourceText = 'GFW';
+      const sourceText = vessel.positionSource === 'gfw' ? 'GFW' : 'Demo';
+      const isDemo = vessel.positionSource === 'demo';
       L.circleMarker(vessel.position as L.LatLngExpression, {
         radius: 5,
         color,
         fillColor: color,
-        fillOpacity: 0.9,
+        fillOpacity: isDemo ? 0.7 : 0.9,
         weight: vessel.status === 'at_risk' ? 2 : 1,
+        dashArray: isDemo ? '3 2' : undefined,
       })
         .bindTooltip(
           `<span style=\"font-family:monospace;font-size:11px\">${vessel.flag} ${vessel.name}<br/>Source: ${sourceText}${timestampText}</span>`,
@@ -292,12 +294,19 @@ export function MapView() {
           </div>
         ))}
         <div className="pt-1 border-t border-border/60 mt-1">
-          <span className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider">Positions</span>
-          <p className="text-[11px] text-muted-foreground">
-            {gfwStatus === 'disabled' && 'GFW required (set VITE_GFW_API_TOKEN)'}
-            {gfwStatus === 'loading' && 'Loading GFW positions...'}
-            {gfwStatus === 'ready' && `GFW positioned ${gfwUpdatedCount}/${vessels.length} vessels`}
-            {gfwStatus === 'error' && 'GFW fetch failed (no vessel positions shown)'}
+          <span className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider">Vessels</span>
+          {[
+            { color: 'bg-green-500', label: 'Compliant' },
+            { color: 'bg-yellow-500', label: 'Action Needed' },
+            { color: 'bg-red-500', label: 'At Risk' },
+          ].map(item => (
+            <div key={item.label} className="flex items-center gap-2">
+              <div className={`h-2 w-2 rounded-full ${item.color}`} />
+              <span className="text-[11px] text-muted-foreground">{item.label}</span>
+            </div>
+          ))}
+          <p className="text-[10px] text-muted-foreground/60 mt-1">
+            {gfwStatus === 'ready' ? `GFW live · ${gfwUpdatedCount} vessels` : 'Demo positions'}
           </p>
         </div>
       </div>

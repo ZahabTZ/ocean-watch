@@ -8,13 +8,10 @@ import Onboarding from "./pages/Onboarding";
 import Research from "./pages/Research";
 import NotFound from "./pages/NotFound";
 import { OnboardingProvider } from "./lib/onboarding";
-import { useOnboarding } from "./hooks/use-onboarding";
 
 const queryClient = new QueryClient();
 
 const RequireOnboarding = ({ children }: { children: React.ReactNode }) => {
-  const { isOnboarded } = useOnboarding();
-  if (!isOnboarded) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 };
 

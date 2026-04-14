@@ -27,6 +27,19 @@ const ZONE_POLYGONS: Record<string, LatLngExpression[]> = {
   'NA-2': [
     [25, -55], [25, -30], [40, -30], [40, -55],
   ],
+  'SA-1': [
+    [-15, -20], [-15, 15], [-35, 15], [-35, -20],
+  ],
+};
+
+// Demo positions: approximate center of each zone for placing vessels
+const ZONE_DEMO_CENTERS: Record<string, [number, number]> = {
+  'EPO-3': [-20, -120],
+  'IO-4': [-15, 67],
+  'Area 48.1': [-62, -52],
+  'WCPO High Seas': [-5, 157],
+  'NA-2': [32, -42],
+  'SA-1': [-25, -2],
 };
 
 export function buildMapZones(): MapZone[] {
@@ -35,6 +48,8 @@ export function buildMapZones(): MapZone[] {
   const allZoneNames = new Set([
     ...alerts.map(a => a.zone),
     ...vessels.map(v => v.zone),
+    // Always show all known zones
+    ...Object.keys(ZONE_POLYGONS),
   ]);
 
   return Array.from(allZoneNames).map(zoneName => {
@@ -69,20 +84,38 @@ export interface MapVessel {
   species: string[];
   imo?: string;
   mmsi?: string;
-  positionSource?: 'gfw';
+  positionSource?: 'gfw' | 'demo';
   positionTimestamp?: string;
   gfwVesselId?: string;
 }
 
 export function buildMapVessels(): MapVessel[] {
-  return getFleetVessels().map(v => ({
-    id: v.id,
-    name: v.name,
-    flag: v.flag,
-    status: v.status,
-    zone: v.zone,
-    species: v.species,
-    imo: v.imo,
-    mmsi: v.mmsi,
-  }));
+  // Count vessels per zone so we can spread them evenly within the zone box
+  const zoneIndexMap = new Map<string, number>();
+
+  return getFleetVessels().map(v => {
+    const center = ZONE_DEMO_CENTERS[v.zone];
+    const zoneIdx = zoneIndexMap.get(v.zone) ?? 0;
+    zoneIndexMap.set(v.zone, zoneIdx + 1);
+
+    // Spread in a grid-ish pattern within ±4° lat / ±5° lng of zone center
+    const row = Math.floor(zoneIdx / 3);
+    const col = zoneIdx % 3;
+    const position: LatLngExpression | undefined = center
+      ? [center[0] + (row - 1) * 3, center[1] + (col - 1) * 4]
+      : undefined;
+
+    return {
+      id: v.id,
+      name: v.name,
+      flag: v.flag,
+      status: v.status,
+      zone: v.zone,
+      species: v.species,
+      imo: v.imo,
+      mmsi: v.mmsi,
+      position,
+      positionSource: position ? 'demo' : undefined,
+    };
+  });
 }
