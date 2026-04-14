@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getComplianceAlerts, hasFleetProfile, seedDemoFleetProfile } from '@/data/liveData';
+import { DEMO_RESEARCH_REQUESTS } from '@/data/researchData';
 
 // Auto-seed demo profile on first load so the map always shows vessels
 if (!hasFleetProfile()) {
   seedDemoFleetProfile();
 }
-import { DEMO_RESEARCH_REQUESTS } from '@/data/researchData';
 import { DashboardView } from '@/components/DashboardView';
 import { MapView } from '@/components/MapView';
 import { ChatPanel } from '@/components/ChatPanel';
