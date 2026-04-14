@@ -60,7 +60,8 @@ export function buildMapZones(): MapZone[] {
     const zoneVessels = vessels.filter(v => v.zone === zoneName);
 
     let status: MapZone['status'] = 'green';
-    if (zoneAlerts.some(a => a.severity === 'critical')) status = 'red';
+    if (zoneName === 'EPO-3') status = 'red';
+    else if (zoneAlerts.some(a => a.severity === 'critical')) status = 'red';
     else if (zoneAlerts.some(a => a.severity === 'warning')) status = 'yellow';
 
     return {
