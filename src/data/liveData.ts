@@ -405,17 +405,20 @@ export const DEMO_FLEET_PROFILE: FleetProfile = {
   })),
 };
 
-export function loadFleetProfile(): FleetProfile | null {
-  if (typeof window === 'undefined') return null;
+export function loadFleetProfile(): FleetProfile {
+  // Always return the demo profile — no localStorage dependency for demo mode
   try {
-    const raw = window.localStorage.getItem(FLEET_PROFILE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as FleetProfile;
-    if (!parsed || !parsed.companyName) return null;
-    return parsed;
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem(FLEET_PROFILE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as FleetProfile;
+        if (parsed?.companyName) return parsed;
+      }
+    }
   } catch {
-    return null;
+    // fall through
   }
+  return DEMO_FLEET_PROFILE;
 }
 
 export function saveFleetProfile(profile: FleetProfile): void {
@@ -424,7 +427,7 @@ export function saveFleetProfile(profile: FleetProfile): void {
 }
 
 export function hasFleetProfile(): boolean {
-  return !!loadFleetProfile();
+  return true;
 }
 
 export function seedDemoFleetProfile(): FleetProfile {
@@ -434,14 +437,11 @@ export function seedDemoFleetProfile(): FleetProfile {
 
 export function getFleetVessels(): Vessel[] {
   const profile = loadFleetProfile();
-  if (!profile) return [];
-
   const activeAlerts = LIVE_ALERTS.filter(a => profile.rfmos.includes(a.rfmo));
   const needsActionByZone = new Set(
     activeAlerts.filter(a => a.status === 'action_required').map(a => a.zone),
   );
 
-  // Always use KNOWN_DEMO_VESSELS as the source of truth so new vessels appear immediately
   return KNOWN_DEMO_VESSELS.map(v => ({
     ...v,
     status: needsActionByZone.has(v.zone) ? 'action_needed' : v.status,
@@ -450,7 +450,6 @@ export function getFleetVessels(): Vessel[] {
 
 export function getComplianceAlerts(): ComplianceAlert[] {
   const profile = loadFleetProfile();
-  if (!profile) return [];
   const vessels = getFleetVessels();
   const vesselNames = new Set(vessels.map(v => v.name));
   const zones = new Set(profile.zones);
@@ -481,7 +480,6 @@ export function getComplianceAlerts(): ComplianceAlert[] {
 
 export function getRfmoSources(): RFMOSource[] {
   const profile = loadFleetProfile();
-  if (!profile) return [];
 
   const tracked = new Set(profile.rfmos.map(r => r.toUpperCase()));
   const perRfmoCounts = SCRAPED_ALERTS.reduce<Record<string, number>>((acc, row) => {
